@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: brewlite
       POSTGRES_PASSWORD: brewlite
       POSTGRES_DB: brewlite
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
 volumes:
   pgdata:
