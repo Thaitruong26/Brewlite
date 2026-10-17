@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%">
+      <stop offset="0%" stop-color="#d7ccc8"/>
+      <stop offset="100%" stop-color="#4e342e"/>
+    </radialGradient>
+    <linearGradient id="drink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a1887f"/>
+      <stop offset="60%" stop-color="#6d4c41"/>
+      <stop offset="100%" stop-color="#3e2723"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="#1a0d0a"/>
+  <rect width="600" height="600" fill="url(#bg)" opacity="0.12"/>
+  <!-- Cup -->
+  <path d="M195 170 L215 435 H385 L405 170 Z" fill="url(#drink)" opacity="0.9"/>
+  <rect x="195" y="162" width="210" height="20" rx="10" fill="#8d6e63"/>
+  <!-- Bubbles (tapioca pearls) -->
+  <circle cx="250" cy="400" r="14" fill="#1a0d0a"/>
+  <circle cx="280" cy="410" r="13" fill="#1a0d0a"/>
+  <circle cx="310" cy="398" r="15" fill="#1a0d0a"/>
+  <circle cx="340" cy="408" r="13" fill="#1a0d0a"/>
+  <circle cx="265" cy="420" r="12" fill="#1a0d0a"/>
+  <circle cx="325" cy="418" r="14" fill="#1a0d0a"/>
+  <!-- Straw -->
+  <rect x="345" y="140" width="14" height="300" rx="7" fill="#ef9a9a" opacity="0.9"/>
+  <!-- Label -->
+  <text x="300" y="492" font-family="'Segoe UI', sans-serif" font-size="24" fill="#d7ccc8" text-anchor="middle" font-weight="bold">Trà sữa trân châu</text>
+  <text x="300" y="525" font-family="'Segoe UI', sans-serif" font-size="18" fill="#bcaaa4" text-anchor="middle">45.000 ₫</text>
+</svg>

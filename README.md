@@ -2,7 +2,7 @@
 
 ### Yêu cầu trước khi chạy:
 - Bật sẵn **Docker Desktop**.
-- Cài sẵn **Node.js** (v20+).
+- Cài sẵn **Node.js** v22.22.3 trở lên (khuyến nghị dùng [nvm](https://github.com/nvm-sh/nvm): `nvm use` tại thư mục gốc).
 - *(Nếu dùng Windows PowerShell bị lỗi chặn lệnh npm)*: Chạy `Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned`.
 
 ---
