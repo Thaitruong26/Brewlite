@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%">
+      <stop offset="0%" stop-color="#fff9c4"/>
+      <stop offset="100%" stop-color="#f57f17"/>
+    </radialGradient>
+    <radialGradient id="drink" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#ffcc80"/>
+      <stop offset="100%" stop-color="#e65100"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="600" fill="#1a1200"/>
+  <rect width="600" height="600" fill="url(#bg)" opacity="0.15"/>
+  <!-- Glass -->
+  <path d="M200 180 L220 430 H380 L400 180 Z" fill="url(#drink)" opacity="0.85"/>
+  <rect x="200" y="175" width="200" height="18" rx="9" fill="#ffb74d"/>
+  <!-- Ice cubes -->
+  <rect x="240" y="200" width="40" height="35" rx="5" fill="white" opacity="0.3"/>
+  <rect x="295" y="210" width="38" height="32" rx="5" fill="white" opacity="0.25"/>
+  <rect x="330" y="195" width="36" height="38" rx="5" fill="white" opacity="0.2"/>
+  <!-- Lychee -->
+  <circle cx="260" cy="300" r="22" fill="#ffab91"/>
+  <circle cx="340" cy="320" r="20" fill="#ff8a65"/>
+  <!-- Straw -->
+  <rect x="350" y="150" width="10" height="290" rx="5" fill="#4caf50" opacity="0.9"/>
+  <!-- Label -->
+  <text x="300" y="490" font-family="'Segoe UI', sans-serif" font-size="28" fill="#fff9c4" text-anchor="middle" font-weight="bold">Trà vải</text>
+  <text x="300" y="525" font-family="'Segoe UI', sans-serif" font-size="18" fill="#ffcc80" text-anchor="middle">42.000 ₫</text>
+</svg>

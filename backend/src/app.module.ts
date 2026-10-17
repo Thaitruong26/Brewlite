@@ -15,6 +15,7 @@ import { PricingModule } from './common/pricing/pricing.module.js';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    PricingModule,
     ProductsModule,
     ToppingsModule,
     AuthModule,

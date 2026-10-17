@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%">
+      <stop offset="0%" stop-color="#c8e6c9"/>
+      <stop offset="100%" stop-color="#1b5e20"/>
+    </radialGradient>
+    <linearGradient id="drink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#66bb6a"/>
+      <stop offset="100%" stop-color="#2e7d32"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="600" fill="#0d1f0e"/>
+  <rect width="600" height="600" fill="url(#bg)" opacity="0.12"/>
+  <!-- Blended frappe cup -->
+  <path d="M195 160 L215 430 H385 L405 160 Z" fill="url(#drink)" opacity="0.88"/>
+  <rect x="195" y="152" width="210" height="22" rx="11" fill="#43a047"/>
+  <!-- Whipped cream swirl top -->
+  <ellipse cx="300" cy="160" rx="90" ry="30" fill="white" opacity="0.9"/>
+  <ellipse cx="300" cy="145" rx="65" ry="22" fill="white" opacity="0.8"/>
+  <ellipse cx="300" cy="132" rx="40" ry="16" fill="white" opacity="0.7"/>
+  <!-- Matcha powder dust -->
+  <ellipse cx="300" cy="132" rx="30" ry="10" fill="#388e3c" opacity="0.5"/>
+  <!-- Straw -->
+  <rect x="355" y="130" width="12" height="310" rx="6" fill="#a5d6a7" opacity="0.9"/>
+  <!-- Label -->
+  <text x="300" y="490" font-family="'Segoe UI', sans-serif" font-size="24" fill="#c8e6c9" text-anchor="middle" font-weight="bold">Matcha đá xay</text>
+  <text x="300" y="525" font-family="'Segoe UI', sans-serif" font-size="18" fill="#a5d6a7" text-anchor="middle">52.000 ₫</text>
+</svg>
