@@ -1,118 +1,190 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ☕ BrewLite — Backend (NestJS)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API server cho hệ thống quản lý quán cà phê BrewLite, xây dựng với **NestJS + Prisma + PostgreSQL**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## Yêu cầu môi trường
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+| Công cụ | Phiên bản tối thiểu |
+|---|---|
+| Node.js | v22.22.3 (xem `.nvmrc`) |
+| npm | v10+ |
+| Docker Desktop | đang chạy |
 
-## Project setup
+> **Windows PowerShell:** nếu gặp lỗi chặn lệnh npm, chạy một lần:
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+> ```
+
+---
+
+## Bước 0 — Bật Database (PostgreSQL qua Docker)
+
+> Chạy tại **thư mục gốc** của repo (cùng cấp với `docker-compose.yml`):
 
 ```bash
-$ npm.cmd install
+docker compose up -d
 ```
 
-## Compile and run the project
+Kiểm tra đã lên:
 
 ```bash
-# development
-$ npm.cmd run start
-
-# watch mode
-$ npm.cmd run start:dev
-
-# production mode
-$ npm.cmd run start:prod
+docker compose ps
 ```
 
-## Run tests
+Container `db` ở trạng thái **healthy / running** là đúng.
+Postgres lắng nghe tại `localhost:5433` (ánh xạ từ port 5432 bên trong container).
+
+---
+
+## Bước 1 — Cài đặt & Cấu hình
 
 ```bash
-# unit tests
-$ npm.cmd run test
+cd backend
 
-# e2e tests
-$ npm.cmd run test:e2e
+# 1. Sao chép file biến môi trường
+cp .env.example .env
 
-# test coverage
-$ npm.cmd run test:cov
+# 2. Cài dependencies (tự động chạy `prisma generate` sau khi cài)
+npm install
 ```
 
-## Deployment
+Giá trị mặc định trong `.env` đã khớp với Docker Compose, không cần sửa khi chạy local:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```
+PORT=4000
+DATABASE_URL=postgresql://brewlite:brewlite@localhost:5433/brewlite
+JWT_SECRET=change-me
+JWT_EXPIRES_IN=1d
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+> ⚠️ Đổi `JWT_SECRET` thành một giá trị ngẫu nhiên trước khi deploy lên môi trường thật.
+
+---
+
+## Bước 2 — Migrate Database
+
+Tạo schema trong database lần đầu (hoặc áp dụng migration mới):
 
 ```bash
-$ npm.cmd install -g @nestjs/mau
-$ mau deploy
+npx prisma migrate dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Nếu chỉ muốn áp migration mà **không** tạo migration mới (ví dụ môi trường staging):
 
-## Observability
+```bash
+npx prisma migrate deploy
+```
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+---
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## Bước 3 — Seed Dữ liệu Mẫu
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+```bash
+npx prisma db seed
+```
 
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
+Tạo sẵn các tài khoản và sản phẩm mẫu:
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+| Vai trò | Email | Mật khẩu |
+|---|---|---|
+| Khách hàng | `demo@brewlite.com` | `Demo@1234` |
+| Barista (Nhân viên) | `barista@brewlite.com` | `Barista@123` |
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## Bước 4 — Chạy Backend
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+```bash
+# Development (hot-reload)
+npm run start:dev
 
-## Support
+# Debug mode
+npm run start:debug
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Production
+npm run start:prod
+```
 
-## Stay in touch
+Sau khi khởi động:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| Endpoint | URL |
+|---|---|
+| REST API base | http://localhost:4000/api |
+| Swagger UI (test API) | http://localhost:4000/api/docs |
+| Health check | http://localhost:4000/api/health |
 
-## License
+---
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## Bước 5 — Chạy Frontend (Terminal riêng)
+
+```bash
+cd frontend
+
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+| Giao diện | URL |
+|---|---|
+| Web App | http://localhost:3000 |
+| Dự phòng (nếu 3000 bị chiếm) | http://localhost:3001 |
+
+---
+
+## Xem Database trực quan (Prisma Studio)
+
+```bash
+npx prisma studio
+```
+
+Truy cập http://localhost:5555 để duyệt và chỉnh sửa dữ liệu qua giao diện web.
+
+---
+
+## Kiểm thử
+
+```bash
+# Unit tests
+npm run test
+
+# Unit tests (watch mode)
+npm run test:watch
+
+# E2E tests
+npm run test:e2e
+
+# Test coverage
+npm run test:cov
+```
+
+---
+
+## Lint & Format
+
+```bash
+# Lint (oxlint)
+npm run lint
+
+# Format (prettier)
+npm run format
+```
+
+---
+
+## Tóm tắt lệnh khởi động nhanh
+
+```bash
+# Terminal 0 — DB (thư mục gốc)
+docker compose up -d
+
+# Terminal 1 — Backend
+cd backend && cp .env.example .env && npm install
+npx prisma migrate dev && npx prisma db seed
+npm run start:dev
+
+# Terminal 2 — Frontend
+cd frontend && cp .env.example .env.local && npm install && npm run dev
+```
