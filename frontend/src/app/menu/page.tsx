@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { ApiError } from "@/lib/api/client";
 import { getProducts } from "@/lib/api/products";
 import { getDevelopmentProducts } from "@/lib/api/dev-products";
@@ -93,13 +93,19 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 // ─── Hero banner ──────────────────────────────────────────────────────────────
-function HeroBanner() {
-  const [greeting, setGreeting] = useState("Chào buổi sáng!");
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  return hour < 12 ? "Chào buổi sáng!" : hour < 18 ? "Chào buổi chiều!" : "Chào buổi tối!";
+}
 
-  useEffect(() => {
-    const hour = new Date().getHours();
-    setGreeting(hour < 12 ? "Chào buổi sáng!" : hour < 18 ? "Chào buổi chiều!" : "Chào buổi tối!");
-  }, []);
+const emptySubscribe = () => () => {};
+
+function HeroBanner() {
+  const greeting = useSyncExternalStore(
+    emptySubscribe,
+    getGreeting,
+    () => "Chào buổi sáng!",
+  );
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a3d26] to-[#2d6a4f] px-5 py-5">
@@ -182,18 +188,16 @@ export default function MenuPage() {
   );
 
   const result = fixtureResult ?? query.data;
-  const allProducts = result?.data ?? [];
 
   // Lọc theo search ở client (API không cần search cho Sprint 1)
-  const products = useMemo(
-    () =>
-      search.trim()
-        ? allProducts.filter((p) =>
-            p.name.toLowerCase().includes(search.trim().toLowerCase()),
-          )
-        : allProducts,
-    [allProducts, search],
-  );
+  const products = useMemo(() => {
+    const allProducts = result?.data ?? [];
+    return search.trim()
+      ? allProducts.filter((p) =>
+          p.name.toLowerCase().includes(search.trim().toLowerCase()),
+        )
+      : allProducts;
+  }, [result, search]);
 
   // Danh sách danh mục từ tất cả products (không lọc theo category)
   const categories = useMemo(() => {
