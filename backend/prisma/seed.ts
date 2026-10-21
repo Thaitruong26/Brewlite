@@ -89,8 +89,39 @@ async function main() {
     });
   }
 
+  const demoUser = await prisma.user.findUnique({ where: { email: 'demo@brewlite.com' } });
+  if (demoUser) {
+    await prisma.loyaltyTransaction.deleteMany({});
+    await prisma.payment.deleteMany({});
+    await prisma.order.upsert({
+      where: { id: 1 },
+      update: { status: 'PENDING' },
+      create: {
+        id: 1,
+        userId: demoUser.id,
+        status: 'PENDING',
+        subtotal: 50000,
+        discountAmount: 0,
+        total: 50000,
+      },
+    });
+
+    await prisma.order.upsert({
+      where: { id: 2 },
+      update: { status: 'PENDING' },
+      create: {
+        id: 2,
+        userId: demoUser.id,
+        status: 'PENDING',
+        subtotal: 80000,
+        discountAmount: 0,
+        total: 80000,
+      },
+    });
+  }
+
   console.log(
-    `Done: ${products.length} sản phẩm, ${toppings.length} topping, ${promoCodes.length} mã giảm giá, ${users.length} tài khoản.`,
+    `Done: ${products.length} sản phẩm, ${toppings.length} topping, ${promoCodes.length} mã giảm giá, ${users.length} tài khoản, 2 đơn hàng mẫu (#1, #2).`,
   );
   console.log('Tài khoản demo: demo@brewlite.com / Demo@1234, barista@brewlite.com / Barista@123');
 }

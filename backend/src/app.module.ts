@@ -11,6 +11,8 @@ import { PaymentsModule } from './payments/payments.module.js';
 import { PromotionsModule } from './promotions/promotions.module.js';
 import { HealthModule } from './health/health.module.js';
 import { PricingModule } from './common/pricing/pricing.module.js';
+import { LoyaltyModule } from './loyalty/loyalty.module.js';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -23,6 +25,7 @@ import { PricingModule } from './common/pricing/pricing.module.js';
     PaymentsModule,
     PromotionsModule,
     HealthModule,
+    LoyaltyModule,
   ],
   controllers: [AppController],
   providers: [AppService],
