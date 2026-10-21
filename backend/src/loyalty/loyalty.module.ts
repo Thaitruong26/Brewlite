@@ -3,6 +3,6 @@ import { LoyaltyService } from './loyalty.service.js';
 
 @Module({
   providers: [LoyaltyService],
-  exports: [LoyaltyService]
+  exports: [LoyaltyService],
 })
 export class LoyaltyModule {}
