@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "@/lib/api/client";
 import { getProducts } from "@/lib/api/products";
 import { getDevelopmentProducts } from "@/lib/api/dev-products";
@@ -94,9 +94,12 @@ function ProductCard({ product }: { product: Product }) {
 
 // ─── Hero banner ──────────────────────────────────────────────────────────────
 function HeroBanner() {
-  const hour = new Date().getHours();
-  const greeting =
-    hour < 12 ? "Chào buổi sáng!" : hour < 18 ? "Chào buổi chiều!" : "Chào buổi tối!";
+  const [greeting, setGreeting] = useState("Chào buổi sáng!");
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    setGreeting(hour < 12 ? "Chào buổi sáng!" : hour < 18 ? "Chào buổi chiều!" : "Chào buổi tối!");
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1a3d26] to-[#2d6a4f] px-5 py-5">
