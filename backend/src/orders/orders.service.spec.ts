@@ -1,3 +1,4 @@
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrdersService } from './orders.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
@@ -13,6 +14,10 @@ describe('OrdersService', () => {
       findMany: ReturnType<typeof vi.fn>;
       count: ReturnType<typeof vi.fn>;
     };
+    promoCode: {
+      findUnique: ReturnType<typeof vi.fn>;
+      updateMany: ReturnType<typeof vi.fn>;
+    };
     $transaction: ReturnType<typeof vi.fn>;
   };
 
@@ -27,9 +32,17 @@ describe('OrdersService', () => {
         findMany: vi.fn(),
         count: vi.fn(),
       },
-      $transaction: vi.fn(
-        async (queries: Promise<unknown>[]) => Promise.all(queries),
-      ),
+      promoCode: {
+        findUnique: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      $transaction: vi.fn(async (arg: unknown) => {
+        if (typeof arg === 'function') {
+          return arg(prisma);
+        }
+
+        return Promise.all(arg as Promise<unknown>[]);
+      }),
     };
 
     pricingService = {
@@ -77,6 +90,7 @@ describe('OrdersService', () => {
         subtotal: 90000,
         discountAmount: 0,
         total: 90000,
+        promoCode: null,
         createdAt: new Date('2026-10-20T00:00:00Z'),
         items: [
           {
@@ -95,7 +109,10 @@ describe('OrdersService', () => {
 
       const result = await service.createOrder(7, dto);
 
-      expect(pricingService.calculate).toHaveBeenCalledWith(dto.items);
+      expect(pricingService.calculate).toHaveBeenCalledWith(
+        dto.items,
+        prisma,
+      );
 
       expect(prisma.order.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -105,6 +122,7 @@ describe('OrdersService', () => {
             subtotal: 90000,
             discountAmount: 0,
             total: 90000,
+            promoCode: null,
           }),
           include: { items: true },
         }),

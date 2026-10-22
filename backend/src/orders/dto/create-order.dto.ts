@@ -43,10 +43,16 @@ export class CreateOrderItemDto {
   note?: string;
 }
 
+
 export class CreateOrderDto {
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items!: CreateOrderItemDto[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  promoCode?: string;
 }

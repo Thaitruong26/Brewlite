@@ -1,5 +1,5 @@
-
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -17,43 +17,103 @@ export class OrdersService {
   ) {}
 
   async createOrder(userId: number, dto: CreateOrderDto) {
-    const pricing = await this.pricingService.calculate(dto.items);
+    return this.prisma.$transaction(async (tx) => {
+      const pricing = await this.pricingService.calculate(dto.items, tx);
+      let discountAmount = 0;
 
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        status: 'PENDING',
-        subtotal: pricing.subtotal,
-        discountAmount: 0,
-        total: pricing.subtotal,
-        items: {
-          create: pricing.lines.map((line) => ({
-            productId: line.productId,
-            productName: line.productName,
-            size: line.size,
-            toppings: line.toppings as Prisma.InputJsonValue,
-            unitPrice: line.unitPrice,
-            qty: line.qty,
-            lineTotal: line.lineTotal,
-            note: line.note,
-          })),
+      if (dto.promoCode) {
+        const promo = await tx.promoCode.findUnique({
+          where: { code: dto.promoCode },
+        });
+
+        if (!promo || !promo.isActive) {
+          throw new BadRequestException('Mã khuyến mãi không hợp lệ');
+        }
+
+        if (
+          promo.usageLimit !== null &&
+          promo.usedCount >= promo.usageLimit
+        ) {
+          throw new BadRequestException('Mã khuyến mãi đã hết lượt sử dụng');
+        }
+
+        if (pricing.subtotal < promo.minOrderValue) {
+          throw new BadRequestException(
+            'Đơn hàng chưa đạt giá trị tối thiểu',
+          );
+        }
+
+        if (promo.type === 'PERCENT') {
+          discountAmount = Math.floor(
+            (pricing.subtotal * promo.value) / 100,
+          );
+
+          if (
+            promo.maxDiscount !== null &&
+            discountAmount > promo.maxDiscount
+          ) {
+            discountAmount = promo.maxDiscount;
+          }
+        } else {
+          discountAmount = promo.value;
+        }
+
+        discountAmount = Math.min(discountAmount, pricing.subtotal);
+
+        const updatedPromo = await tx.promoCode.updateMany({
+          where: {
+            id: promo.id,
+            isActive: true,
+            ...(promo.usageLimit !== null
+              ? { usedCount: { lt: promo.usageLimit } }
+              : {}),
+          },
+          data: { usedCount: { increment: 1 } },
+        });
+
+        if (updatedPromo.count !== 1) {
+          throw new BadRequestException(
+            'Mã khuyến mãi đã hết lượt sử dụng',
+          );
+        }
+      }
+
+      const order = await tx.order.create({
+        data: {
+          userId,
+          status: 'PENDING',
+          subtotal: pricing.subtotal,
+          discountAmount,
+          total: pricing.subtotal - discountAmount,
+          promoCode: dto.promoCode ?? null,
+          items: {
+            create: pricing.lines.map((line) => ({
+              productId: line.productId,
+              productName: line.productName,
+              size: line.size,
+              toppings: line.toppings as Prisma.InputJsonValue,
+              unitPrice: line.unitPrice,
+              qty: line.qty,
+              lineTotal: line.lineTotal,
+              note: line.note,
+            })),
+          },
         },
-      },
-      include: {
-        items: true,
-      },
-    });
+        include: { items: true },
+      });
 
-    return {
-      id: order.id,
-      code: `#${order.id}`,
-      status: order.status,
-      items: order.items,
-      subtotal: order.subtotal,
-      discountAmount: order.discountAmount,
-      total: order.total,
-      createdAt: order.createdAt,
-    };
+      return {
+        id: order.id,
+        code: `#${order.id}`,
+        status: order.status,
+        items: order.items,
+        subtotal: order.subtotal,
+        discountAmount: order.discountAmount,
+        total: order.total,
+        promoCode: order.promoCode,
+        createdAt: order.createdAt,
+      };
+    });
   }
 
   async getMyOrders(
@@ -64,7 +124,9 @@ export class OrdersService {
   ) {
     const where: Prisma.OrderWhereInput = {
       userId,
-      ...(status ? { status: status as Prisma.EnumOrderStatusFilter['equals'] } : {}),
+      ...(status
+        ? { status: status as Prisma.EnumOrderStatusFilter['equals'] }
+        : {}),
     };
 
     const [orders, total] = await this.prisma.$transaction([

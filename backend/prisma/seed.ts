@@ -10,23 +10,48 @@ const prisma = new PrismaClient({ adapter });
 
 // Ảnh nằm trong frontend/public/img/<tên>.jpg (bạn tự bỏ ảnh vào, hoặc dùng ảnh tạm).
 const products = [
-  { name: 'Cà phê sữa', price: 35000, category: 'Cà phê', stock: 50, imageUrl: '/img/ca-phe-sua.jpg', description: 'Cà phê phin pha sữa đặc' },
-  { name: 'Americano', price: 40000, category: 'Cà phê', stock: 50, imageUrl: '/img/americano.jpg', description: 'Espresso pha loãng với nước nóng' },
-  { name: 'Cappuccino', price: 45000, category: 'Cà phê', stock: 40, imageUrl: '/img/cappuccino.jpg', description: 'Espresso, sữa nóng và lớp bọt sữa' },
-  { name: 'Trà đào', price: 39000, category: 'Trà', stock: 40, imageUrl: '/img/tra-dao.jpg', description: 'Trà đen, đào ngâm và sả' },
-  { name: 'Latte', price: 48000, category: 'Cà phê', stock: 30, imageUrl: '/img/latte.jpg', description: 'Espresso với nhiều sữa tươi' },
-  { name: 'Bạc xỉu', price: 38000, category: 'Cà phê', stock: 40, imageUrl: '/img/bac-xiu.jpg', description: 'Nhiều sữa, ít cà phê' },
-  { name: 'Trà vải', price: 42000, category: 'Trà', stock: 35, imageUrl: '/img/tra-vai.jpg', description: 'Trà hoa nhài với vải' },
-  { name: 'Trà sữa trân châu', price: 45000, category: 'Trà', stock: 35, imageUrl: '/img/tra-sua.jpg', description: 'Trà sữa truyền thống' },
-  { name: 'Matcha đá xay', price: 52000, category: 'Đá xay', stock: 25, imageUrl: '/img/matcha-da-xay.jpg', description: 'Matcha xay cùng đá và sữa' },
-  { name: 'Cà phê muối', price: 42000, category: 'Cà phê', stock: 5, imageUrl: '/img/ca-phe-muoi.jpg', description: 'Stock thấp (5) để test đặt đồng thời' },
+  // Nhóm 1 — Trà sữa (6 món)
+  { name: 'Trà Sữa Truyền Thống', price: 35000, category: 'Trà sữa', stock: 50, imageUrl: '/img/tra-sua-truyen-thong.jpg', description: 'Trà đen đậm đà kết hợp sữa thơm béo' },
+  { name: 'Ô Long Sữa', price: 38000, category: 'Trà sữa', stock: 50, imageUrl: '/img/o-long-sua.jpg', description: 'Trà ô long thanh mát hòa quyện vị sữa béo ngậy' },
+  { name: 'Trà Sữa Khoai Môn', price: 42000, category: 'Trà sữa', stock: 40, imageUrl: '/img/tra-sua-khoai-mon.jpg', description: 'Vị khoai môn bùi béo tự nhiên, màu tím bắt mắt' },
+  { name: 'Trà Sữa Oreo Phô Mai', price: 45000, category: 'Trà sữa', stock: 40, imageUrl: '/img/tra-sua-oreo-pho-mai.jpg', description: 'Vụn bánh Oreo giòn tan kết hợp lớp kem phô mai béo ngậy' },
+  { name: 'Trà Sữa Trân Châu Đen', price: 40000, category: 'Trà sữa', stock: 50, imageUrl: '/img/tra-sua-tran-chau-den.jpg', description: 'Trà sữa truyền thống kèm trân châu đen dẻo dai' },
+  { name: 'Trà Sữa Trân Châu Đường Đen', price: 45000, category: 'Trà sữa', stock: 45, imageUrl: '/img/tra-sua-duong-den.jpg', description: 'Đường đen thơm lừng quyện cùng sữa tươi và trân châu' },
+
+  // Nhóm 2 — Trà trái cây (5 món)
+  { name: 'Trà Đào Cam Sả', price: 39000, category: 'Trà trái cây', stock: 40, imageUrl: '/img/tra-dao-cam-sa.jpg', description: 'Trà đen thanh mát kết hợp đào ngâm giòn, cam tươi và sả thơm' },
+  { name: 'Trà Vải', price: 42000, category: 'Trà trái cây', stock: 35, imageUrl: '/img/tra-vai.jpg', description: 'Trà hoa nhài thanh khiết với trái vải mọng nước' },
+  { name: 'Trà Chanh Dây', price: 35000, category: 'Trà trái cây', stock: 40, imageUrl: '/img/tra-chanh-day.jpg', description: 'Vị chua ngọt thanh mát giải nhiệt tức thì' },
+  { name: 'Trà Dâu Tây', price: 42000, category: 'Trà trái cây', stock: 35, imageUrl: '/img/tra-dau-tay.jpg', description: 'Dâu tây tươi ngọt ngào hòa quyện cùng cốt trà hoa quả' },
+  { name: 'Trà Xoài', price: 40000, category: 'Trà trái cây', stock: 35, imageUrl: '/img/tra-xoai.jpg', description: 'Thịt xoài chín thơm ngọt thanh mát trên nền trà xanh' },
+
+  // Nhóm 3 — Trà nguyên vị và ô long (3 món)
+  { name: 'Ô Long Sữa Nhài', price: 40000, category: 'Trà nguyên vị và ô long', stock: 35, imageUrl: '/img/o-long-sua-nhai.jpg', description: 'Hương hoa nhài thoang thoảng hòa cùng cốt trà ô long sữa' },
+  { name: 'Ô Long Sữa Tươi Nướng', price: 45000, category: 'Trà nguyên vị và ô long', stock: 40, imageUrl: '/img/o-long-nuong.jpg', description: 'Vị trà nướng đậm đà đặc trưng kết hợp sữa tươi thanh trùng' },
+  { name: 'Ô Long Sữa Tươi Xoài', price: 45000, category: 'Trà nguyên vị và ô long', stock: 35, imageUrl: '/img/o-long-xoai.jpg', description: 'Trà ô long sữa thơm ngậy kết hợp mứt xoài ngọt dịu' },
+
+  // Nhóm 4 — Matcha (3 món)
+  { name: 'Matcha Latte', price: 48000, category: 'Matcha', stock: 35, imageUrl: '/img/matcha-latte.jpg', description: 'Bột trà xanh Nhật Bản nguyên chất hòa cùng sữa tươi' },
+  { name: 'Matcha Sữa Dâu', price: 50000, category: 'Matcha', stock: 30, imageUrl: '/img/matcha-sua-dau.jpg', description: 'Hai tầng đẹp mắt: mứt dâu tây chua ngọt và matcha thơm đậm' },
+  { name: 'Matcha Đậu Đỏ', price: 52000, category: 'Matcha', stock: 30, imageUrl: '/img/matcha-dau-do.jpg', description: 'Matcha đậm vị kết hợp topping đậu đỏ bùi ngọt truyền thống' },
+
+  // Nhóm 5 — Cà phê và món đặc biệt (3 món)
+  { name: 'Cà Phê Sữa', price: 35000, category: 'Cà phê và món đặc biệt', stock: 50, imageUrl: '/img/ca-phe-sua.jpg', description: 'Cà phê phin truyền thống pha sữa đặc đậm đà' },
+  { name: 'Bạc Xỉu', price: 38000, category: 'Cà phê và món đặc biệt', stock: 40, imageUrl: '/img/bac-xiu.jpg', description: 'Nhiều sữa ít cà phê, ngọt béo thơm lừng' },
+  { name: 'Cà Phê Muối', price: 42000, category: 'Cà phê và món đặc biệt', stock: 5, imageUrl: '/img/ca-phe-muoi.jpg', description: 'Lớp kem muối béo mặn độc đáo trên nền cà phê phin đậm đặc' },
 ];
 
-// Tạo theo thứ tự này nên trên DB trống: id 1 = Trân châu, 2 = Kem cheese, 3 = Thạch
 const toppings = [
-  { name: 'Trân châu', price: 5000 },
-  { name: 'Kem cheese', price: 7000 },
-  { name: 'Thạch', price: 4000 },
+  { name: 'Trân châu đen', price: 5000 },
+  { name: 'Trân châu đường đen', price: 7000 },
+  { name: 'Thạch củ năng', price: 6000 },
+  { name: 'Thạch đen', price: 5000 },
+  { name: 'Trân châu popping vị trái cây', price: 8000 },
+  { name: 'Đậu đỏ', price: 7000 },
+  { name: 'Oreo nghiền', price: 6000 },
+  { name: 'Kem cheese', price: 10000 },
+  { name: 'Thạch dừa', price: 5000 },
+  { name: 'Pudding trứng', price: 8000 },
 ];
 
 const promoCodes = [
@@ -66,11 +91,18 @@ const promoCodes = [
 async function main() {
   console.log('Seeding BrewLite...');
 
+  await prisma.orderItem.deleteMany({});
+  await prisma.payment.deleteMany({});
+  await prisma.loyaltyTransaction.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.product.deleteMany({});
+  await prisma.topping.deleteMany({});
+
   for (const p of products) {
-    await prisma.product.upsert({ where: { name: p.name }, update: {}, create: p });
+    await prisma.product.create({ data: p });
   }
   for (const t of toppings) {
-    await prisma.topping.upsert({ where: { name: t.name }, update: {}, create: t });
+    await prisma.topping.create({ data: t });
   }
   for (const c of promoCodes) {
     await prisma.promoCode.upsert({ where: { code: c.code }, update: {}, create: c });
@@ -89,8 +121,39 @@ async function main() {
     });
   }
 
+  const demoUser = await prisma.user.findUnique({ where: { email: 'demo@brewlite.com' } });
+  if (demoUser) {
+    await prisma.loyaltyTransaction.deleteMany({});
+    await prisma.payment.deleteMany({});
+    await prisma.order.upsert({
+      where: { id: 1 },
+      update: { status: 'PENDING' },
+      create: {
+        id: 1,
+        userId: demoUser.id,
+        status: 'PENDING',
+        subtotal: 50000,
+        discountAmount: 0,
+        total: 50000,
+      },
+    });
+
+    await prisma.order.upsert({
+      where: { id: 2 },
+      update: { status: 'PENDING' },
+      create: {
+        id: 2,
+        userId: demoUser.id,
+        status: 'PENDING',
+        subtotal: 80000,
+        discountAmount: 0,
+        total: 80000,
+      },
+    });
+  }
+
   console.log(
-    `Done: ${products.length} sản phẩm, ${toppings.length} topping, ${promoCodes.length} mã giảm giá, ${users.length} tài khoản.`,
+    `Done: ${products.length} sản phẩm, ${toppings.length} topping, ${promoCodes.length} mã giảm giá, ${users.length} tài khoản, 2 đơn hàng mẫu (#1, #2).`,
   );
   console.log('Tài khoản demo: demo@brewlite.com / Demo@1234, barista@brewlite.com / Barista@123');
 }
