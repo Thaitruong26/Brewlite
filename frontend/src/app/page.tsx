@@ -49,6 +49,7 @@ export default function Home() {
         <Link
           href="/menu"
           className="group mt-8 inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#183d2c] px-8 text-base font-semibold text-white shadow-md transition-colors duration-200 hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#183d2c]"
+          style={{ color: "#fff" }}
         >
           Khám phá thực đơn
           <span

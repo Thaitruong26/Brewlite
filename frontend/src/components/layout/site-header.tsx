@@ -99,6 +99,7 @@ export function SiteHeader() {
             <Link
               href="/login"
               className="rounded-full bg-[#183d2c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#183d2c]"
+              style={{ color: "#fff" }}
             >
               Đăng nhập
             </Link>
