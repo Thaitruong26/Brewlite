@@ -1,3 +1,4 @@
+
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -42,7 +43,6 @@ export class CreateOrderItemDto {
   @MaxLength(200)
   note?: string;
 }
-
 
 export class CreateOrderDto {
   @IsArray()

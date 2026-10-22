@@ -34,6 +34,7 @@ export class OrdersController {
     @Query('status') status?: string,
   ) {
     const userId = req.user.id;
+
     return this.ordersService.getMyOrders(
       userId,
       Number(page),
