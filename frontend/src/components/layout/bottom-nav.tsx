@@ -50,7 +50,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Điều hướng chính"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e7dc] bg-white/95 backdrop-blur-sm md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#315744] bg-[#183d2c] md:hidden"
     >
       <div className="flex h-16 items-stretch">
         {NAV_ITEMS.map(({ href, label, icon }) => {
@@ -63,20 +63,20 @@ export function BottomNav() {
               aria-label={label}
               aria-current={active ? "page" : undefined}
               className={`relative flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors ${
-                active ? "text-[#183d2c]" : "text-[#94a89b] hover:text-[#344b3c]"
+                active ? "text-[#d2e6d2]" : "text-[#e1e9df] hover:text-white"
               }`}
             >
               <span className="relative">
                 {icon(active)}
                 {isCart && totalItems > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#183d2c] text-[9px] font-bold text-white">
+                  <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#fbf8ef] text-[9px] font-bold text-[#183d2c]">
                     {totalItems > 9 ? "9+" : totalItems}
                   </span>
                 )}
               </span>
               <span>{label}</span>
               {active && (
-                <span className="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#183d2c]" />
+                <span className="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-[#b9ddb9]" />
               )}
             </Link>
           );

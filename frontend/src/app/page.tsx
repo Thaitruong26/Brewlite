@@ -1,127 +1,67 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/products/product-image";
 
-/**
- * Trang chủ — Server Component (không "use client").
- * Tất cả hover effect dùng Tailwind CSS, không có JS event handler.
- */
+const HIGHLIGHTS = [
+  { icon: "☕", label: "100% Rang thủ công" },
+  { icon: "🌿", label: "Nguyên liệu tươi" },
+  { icon: "⏱", label: "Đặt trong 30 giây" },
+];
+
 export default function Home() {
   return (
-    <section className="relative mx-auto grid min-h-[calc(100vh-64px)] max-w-7xl items-center gap-10 px-5 py-12 md:grid-cols-2 md:gap-16 md:px-10 lg:py-20">
-
-      {/* ── Left column: text content ─────────────────────── */}
+    <section className="mx-auto grid min-h-0 max-w-[1200px] items-center gap-10 px-5 py-12 sm:px-8 md:gap-12 md:px-10 md:py-12 lg:min-h-[calc(100svh-116px)] lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 xl:gap-16">
       <div className="flex flex-col items-start">
-
-        {/* Eye-brow */}
-        <div className="mb-6 flex items-center gap-2">
-          <span
-            className="inline-block size-2 rounded-full bg-emerald-500"
-            aria-hidden="true"
-          />
-          <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#183d2c]">
-            BrewLite · Cà phê mỗi ngày
-          </span>
-        </div>
-
-        {/* Headline — dùng Tailwind classes để màu không bị override */}
-        <h1 className="text-[2.6rem] font-bold leading-[1.1] tracking-tight text-[#183d2c] sm:text-5xl lg:text-6xl">
-          Một khoảng lặng,{" "}
-          <br className="hidden sm:block" />
-          <span
-            className="text-[#183d2c]"
-            style={{
-              fontFamily: "'Playfair Display', Georgia, serif",
-              fontStyle: "italic",
-              fontWeight: 700,
-            }}
-          >
-            đúng vị bạn.
-          </span>
-        </h1>
-
-        {/* Description */}
-        <p className="mt-5 max-w-md text-base leading-7 text-[#66736a] sm:text-lg sm:leading-8">
-          Chọn thức uống yêu thích từ thực đơn BrewLite. Đặt món gọn nhẹ,
-          dành thêm thời gian cho điều bạn thích.
+        <p className="mb-5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#183d2c]">
+          <span className="size-2 rounded-full bg-emerald-500" aria-hidden="true" />
+          BrewLite · Cà phê mỗi ngày
         </p>
 
-        {/* CTA — text-white dùng Tailwind class, không dùng style={{ color }} */}
+        <h1 className="max-w-xl text-[2.75rem] font-bold leading-[1.02] tracking-tight text-[#183d2c] sm:text-5xl lg:text-[3.5rem] xl:text-[3.75rem]">
+          <span className="xl:whitespace-nowrap">Một khoảng lặng,</span>
+          <br />
+          <span className="font-serif font-semibold italic">đúng vị bạn.</span>
+        </h1>
+
+        <p className="mt-5 max-w-lg text-[15px] leading-7 text-[#66736a] sm:text-base">
+          Chọn thức uống yêu thích từ thực đơn BrewLite. Đặt món gọn nhẹ, dành thêm thời gian cho điều bạn thích.
+        </p>
+
         <Link
           href="/menu"
-          className="group mt-8 inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[#183d2c] px-8 text-base font-semibold text-white shadow-md transition-colors duration-200 hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#183d2c]"
-          style={{ color: "#fff" }}
+          className="group mt-7 inline-flex min-h-12 items-center justify-center gap-3 rounded-full bg-[#183d2c] px-7 text-sm font-semibold text-[#fffdf6] shadow-md transition-colors hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#183d2c]"
+          style={{ color: "#fffdf6" }}
         >
           Khám phá thực đơn
-          <span
-            aria-hidden="true"
-            className="inline-block transition-transform duration-300 group-hover:translate-x-1"
-          >
-            ↗
-          </span>
+          <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">↗</span>
         </Link>
 
-        {/* Trust badges */}
-        <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3">
-          {[
-            { icon: "☕", label: "100% Rang thủ công" },
-            { icon: "🌿", label: "Nguyên liệu tươi" },
-            { icon: "⚡", label: "Đặt trong 30 giây" },
-          ].map(({ icon, label }) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span className="text-sm" aria-hidden="true">{icon}</span>
-              <span className="text-xs font-semibold text-[#66736a]">{label}</span>
-            </div>
+        <ul className="mt-8 grid w-full max-w-[540px] grid-cols-1 divide-y divide-[#dfe3d8] border-y border-[#dfe3d8] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          {HIGHLIGHTS.map(({ icon, label }) => (
+            <li key={label} className="flex min-h-12 items-center gap-2.5 px-2 py-2.5 text-xs font-medium text-[#385747] sm:justify-center sm:px-3">
+              <span aria-hidden="true" className="text-sm text-[#315f47]">{icon}</span>
+              <span>{label}</span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
-      {/* ── Right column: image card ──────────────────────── */}
-      <div className="relative mx-auto w-full max-w-lg">
-
-        {/* Decorative tilted slab */}
-        <div
-          className="absolute -inset-3 rotate-[2deg] rounded-[2rem] bg-[#e6eadc]"
-          aria-hidden="true"
-        />
-
-        {/* Main coffee photo */}
-        <div className="relative overflow-hidden rounded-[1.7rem] shadow-xl">
+      <div className="relative mx-auto w-full max-w-[560px] px-2 py-2 sm:px-3">
+        <div className="absolute inset-0 rotate-[1.5deg] rounded-[2rem] bg-[#e5eadc]" aria-hidden="true" />
+        <div className="relative overflow-hidden rounded-[1.65rem] bg-[#d8d2c3] shadow-xl">
           <ProductImage
             src="/img/ca-phe-sua.jpg"
-            alt="Ly cà phê sữa BrewLite"
-            className="aspect-[4/3] w-full object-cover"
+            alt="Cà phê sữa BrewLite được pha phin"
+            className="aspect-[1.2/1] w-full object-cover sm:aspect-[1.24/1]"
           />
-          {/* Subtle gradient vignette at bottom for caption legibility */}
-          <div
-            className="absolute inset-x-0 bottom-0 h-28 rounded-b-[1.7rem]"
-            style={{
-              background:
-                "linear-gradient(to top, rgba(0,0,0,.45) 0%, transparent 100%)",
-            }}
-            aria-hidden="true"
-          />
-        </div>
-
-        {/* Caption card — nền kem, chữ xanh, border rõ */}
-        <div
-          className="absolute -bottom-5 left-4 rounded-2xl border border-[#e5e7dc] bg-[#fbf8ef] px-5 py-3 shadow-lg sm:left-6"
-          style={{ boxShadow: "var(--shadow-md)" }}
-        >
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[#66736a]">
-            Pha chậm, thưởng thức lâu
-          </p>
-          <p className="mt-0.5 font-semibold text-[#183d2c]">
-            Chào ngày mới cùng BrewLite
-          </p>
-        </div>
-
-        {/* Rating pill — top-right */}
-        <div className="absolute -top-3 right-5 flex items-center gap-1.5 rounded-full border border-[#e5e7dc] bg-[#fbf8ef] px-3 py-1.5 shadow-md">
-          <span className="text-sm text-amber-400" aria-hidden="true">★★★★★</span>
-          <span className="text-xs font-bold text-[#183d2c]">4.9</span>
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
+          <div className="absolute bottom-4 left-4 max-w-[calc(100%-2rem)] rounded-xl border border-[#e7e4d9] bg-[#fffdf6] px-4 py-2.5 shadow-lg sm:bottom-5 sm:left-5 sm:px-5">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#65766a] sm:text-[10px]">
+              Pha chậm, thưởng thức lâu
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[#183d2c] sm:text-base">Chào ngày mới cùng BrewLite</p>
+          </div>
         </div>
       </div>
-
     </section>
   );
 }

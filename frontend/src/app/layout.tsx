@@ -39,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       style={{ colorScheme: "light" }}
       className={`${inter.variable} ${playfair.variable}`}
     >
-      <body className="flex min-h-screen flex-col antialiased bg-[#f5f7f2] text-[#21372b]">
+      <body className="flex min-h-screen flex-col antialiased bg-[#f4f0e6] text-[#21372b]">
         <AppProviders>
           <SiteHeader />
           {/* pb-32 trên mobile để tránh bị CartBar + BottomNav che nội dung */}

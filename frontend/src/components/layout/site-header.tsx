@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/auth-store";
@@ -27,32 +28,21 @@ export function SiteHeader() {
   useEffect(() => { hydrate(); }, [hydrate]);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#e5e7dc] bg-[#f5f7f2]/95 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-10">
-
-        {/* ── Logo ─────────────────────────────────────────── */}
+    <header className="sticky top-0 z-30 border-b border-[#315744] bg-[#183d2c] text-[#fbf8ef]">
+      <div className="mx-auto grid h-[68px] max-w-7xl grid-cols-[1fr_auto] items-center px-4 sm:px-8 md:grid-cols-[1fr_auto_1fr] md:px-10">
         <Link
           href="/"
           aria-label="BrewLite — Trang chủ"
-          className="flex items-center gap-2.5 rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#183d2c]"
+          className="flex w-fit items-center gap-2.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d2e6d2]"
         >
-          {/* Vòng tròn xanh — text-[#fbf8ef] đảm bảo icon sáng trên nền đậm */}
-          <span
-            className="grid size-9 place-items-center rounded-full bg-[#183d2c] text-lg text-[#fbf8ef]"
-            aria-hidden="true"
-          >
-            ☕
-          </span>
+          <Image src="/img/brewlite-mark.svg" alt="" width={38} height={38} unoptimized priority />
           <div className="leading-tight">
-            <p className="text-base font-bold tracking-tight text-[#183d2c]">BrewLite</p>
-            <p className="hidden text-[10px] font-medium text-[#66736a] sm:block">
-              Campus Artisan Coffee
-            </p>
+            <p className="text-base font-bold tracking-tight text-[#fffdf6]">BrewLite</p>
+            <p className="hidden text-[10px] font-medium text-[#d4e1d6] sm:block">Campus Artisan Coffee</p>
           </div>
         </Link>
 
-        {/* ── Desktop nav ──────────────────────────────────── */}
-        <nav aria-label="Điều hướng chính" className="hidden items-center gap-0.5 md:flex">
+        <nav aria-label="Điều hướng chính" className="hidden h-full items-center gap-1 md:flex">
           {NAV_LINKS.map(({ href, label, hasCart }) => {
             const active = pathname === href;
             return (
@@ -60,15 +50,17 @@ export function SiteHeader() {
                 key={href}
                 href={href}
                 className={[
-                  "relative rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "relative flex h-full items-center px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-5px] focus-visible:outline-[#d2e6d2]",
                   active
-                    ? "bg-[#e9f0e9] font-semibold text-[#183d2c]"
-                    : "text-[#4a6155] hover:bg-[#eef2ec] hover:text-[#183d2c]",
+                    ? "font-semibold text-[#d2e6d2]"
+                    : "text-[#f6f3e8]/90 hover:text-white",
                 ].join(" ")}
+                aria-current={active ? "page" : undefined}
               >
                 {label}
+                {active && <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#b9ddb9]" aria-hidden="true" />}
                 {hasCart && totalItems > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-[#183d2c] text-[9px] font-bold text-white">
+                  <span className="absolute right-0 top-2 flex size-4 items-center justify-center rounded-full bg-[#fbf8ef] text-[9px] font-bold text-[#183d2c]">
                     {totalItems > 9 ? "9+" : totalItems}
                   </span>
                 )}
@@ -77,17 +69,15 @@ export function SiteHeader() {
           })}
         </nav>
 
-        {/* ── Auth ─────────────────────────────────────────── */}
-        <div className="flex items-center gap-2">
+        <div className="col-start-2 flex items-center justify-end gap-2 md:col-start-3">
           {user ? (
             <div className="flex items-center gap-2">
-              <span className="hidden text-sm font-medium text-[#344b3c] sm:block">
+              <span className="hidden text-sm font-medium text-[#f6f3e8] sm:block">
                 {user.fullName.split(" ").pop()}
               </span>
-              {/* Avatar button — text-white đảm bảo chữ trắng trên nền xanh */}
               <button
                 onClick={signOut}
-                className="flex size-9 items-center justify-center rounded-full bg-[#183d2c] text-sm font-bold text-white transition-colors hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#183d2c]"
+                className="flex size-9 items-center justify-center rounded-full bg-[#fbf8ef] text-sm font-bold text-[#183d2c] transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d2e6d2]"
                 aria-label="Đăng xuất"
                 title={`Đăng xuất (${user.email})`}
               >
@@ -95,17 +85,15 @@ export function SiteHeader() {
               </button>
             </div>
           ) : (
-            /* Nút Đăng nhập — text-white Tailwind class đảm bảo chữ trắng */
             <Link
               href="/login"
-              className="rounded-full bg-[#183d2c] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#24563e] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#183d2c]"
-              style={{ color: "#fff" }}
+              className="rounded-full bg-[#fbf8ef] px-5 py-2 text-sm font-semibold text-[#183d2c] shadow-sm transition-colors hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d2e6d2]"
+              style={{ color: "#183d2c" }}
             >
               Đăng nhập
             </Link>
           )}
         </div>
-
       </div>
     </header>
   );
