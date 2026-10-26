@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   SIZE_SURCHARGE,
@@ -109,4 +109,40 @@ export class ProductsService {
       toppings,
     };
   }
+
+  async addStock(id: number, quantity: number, user: { role?: string }) {
+    if (user.role !== 'BARISTA') {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista mới có quyền nhập kho',
+      });
+    }
+
+    const existing = await this.prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException({
+        code: 'PRODUCT_NOT_FOUND',
+        message: `Không tìm thấy sản phẩm #${id}`,
+      });
+    }
+
+    const updated = await this.prisma.product.update({
+      where: { id },
+      data: {
+        stock: { increment: quantity },
+        version: { increment: 1 },
+      },
+    });
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      stock: updated.stock,
+      inStock: updated.stock > 0,
+    };
+  }
 }
+

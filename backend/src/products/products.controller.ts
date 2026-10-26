@@ -1,11 +1,15 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseIntPipe,
+  Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -13,6 +17,9 @@ import {
 } from '@nestjs/swagger';
 import { ProductsService } from './products.service.js';
 import { GetProductsDto } from './dto/get-products.dto.js';
+import { AddStockDto } from './dto/add-stock.dto.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 
 @ApiTags('products')
 @Controller('products')
@@ -38,4 +45,21 @@ export class ProductsController {
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);
   }
+
+  /** POST /api/products/:id/stock (Barista) */
+  @Post(':id/stock')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Barista nhập thêm tồn kho cho sản phẩm (Mở rộng Barista)' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm', example: 1 })
+  @ApiResponse({ status: 200, description: 'Cập nhật tồn kho thành công' })
+  @ApiResponse({ status: 403, description: 'Chỉ nhân viên Barista mới có quyền' })
+  addStock(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AddStockDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.productsService.addStock(id, dto.quantity, user);
+  }
 }
+

@@ -78,7 +78,20 @@ export function SiteHeader() {
         </nav>
 
         {/* ── Auth ─────────────────────────────────────────── */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
+          {user?.role === "BARISTA" && (
+            <Link
+              href="/barista"
+              className={[
+                "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all shadow-sm",
+                pathname === "/barista"
+                  ? "bg-amber-700 text-white shadow-inner"
+                  : "bg-amber-100 text-amber-900 hover:bg-amber-200",
+              ].join(" ")}
+            >
+              <span>👨‍🍳</span> Quầy Barista
+            </Link>
+          )}
           {user ? (
             <div className="flex items-center gap-2">
               <span className="hidden text-sm font-medium text-[#344b3c] sm:block">

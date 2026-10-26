@@ -13,6 +13,7 @@ import {
   CreatePaymentDto,
   MockPaymentResult,
 } from './dto/create-payment.dto.js';
+import { assertTransition } from '../orders/order-state.js';
 
 @Injectable()
 export class PaymentsService {
@@ -135,6 +136,8 @@ export class PaymentsService {
           failureReason: success ? null : 'Mock payment failure',
         },
       });
+
+      assertTransition(order.status as any, success ? 'PAID' : 'PAYMENT_FAILED');
 
       await tx.order.update({
         where: { id: order.id },
