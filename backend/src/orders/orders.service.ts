@@ -195,6 +195,11 @@ export class OrdersService {
         throw err;
       }
     }
+
+    throw new ConflictException({
+      code: 'STOCK_CONFLICT',
+      message: 'Hệ thống đang bận do nhiều người đặt cùng lúc, vui lòng thử lại',
+    });
   }
 
   /**
