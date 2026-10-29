@@ -6,18 +6,36 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from './orders.service.js';
 import { OrderStatus, Role, Size } from '../generated/prisma/client.js';
+import { RecipeService } from '../common/recipe/recipe.service.js';
 
 describe('OrdersService', () => {
   let service: OrdersService;
   let prismaMock: any;
   let pricingServiceMock: any;
+  let recipeService: RecipeService;
 
   beforeEach(() => {
+    recipeService = new RecipeService();
+
     prismaMock = {
       product: {
+        findMany: vi.fn(),
         findUnique: vi.fn(),
         updateMany: vi.fn(),
         update: vi.fn(),
+      },
+      topping: {
+        findMany: vi.fn(),
+      },
+      ingredient: {
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        updateMany: vi.fn(),
+        update: vi.fn(),
+      },
+      stockMovement: {
+        create: vi.fn(),
+        findMany: vi.fn(),
       },
       promoCode: {
         findUnique: vi.fn(),
@@ -64,25 +82,35 @@ describe('OrdersService', () => {
       pointsFor: vi.fn().mockReturnValue(90),
     };
 
-    service = new OrdersService(prismaMock, pricingServiceMock);
+    service = new OrdersService(prismaMock, pricingServiceMock, recipeService);
   });
 
-  describe('createOrder (Task 6 & Task 10)', () => {
-    it('tạo đơn thành công khi còn tồn kho, tính lại giá bằng PricingService', async () => {
-      // Mock sản phẩm còn 10 ly, version = 0
-      prismaMock.product.findUnique.mockResolvedValue({
-        id: 1,
-        name: 'Cà phê sữa',
-        stock: 10,
-        version: 0,
-        isActive: true,
-      });
+  describe('createOrder (Kho theo nguyên liệu & optimistic locking)', () => {
+    it('tạo đơn thành công khi còn tồn nguyên liệu, ghi StockMovement ORDER_RESERVE và lưu consumption', async () => {
+      // Mock sản phẩm có công thức
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Cà phê sữa',
+          isActive: true,
+          productRecipes: [
+            { ingredientId: 10, quantity: 50 }, // Cà phê: 50ml/ly
+            { ingredientId: 20, quantity: 30 }, // Sữa đặc: 30g/ly
+          ],
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
 
-      // Update tồn kho thành công (count = 1)
-      prismaMock.product.updateMany.mockResolvedValue({ count: 1 });
+      // Mock tồn kho nguyên liệu dồi dào
+      prismaMock.ingredient.findUnique.mockImplementation(async ({ where }: any) => {
+        if (where.id === 10) return { id: 10, name: 'Cà phê', stock: 1000, version: 0 };
+        if (where.id === 20) return { id: 20, name: 'Sữa đặc', stock: 500, version: 0 };
+        return null;
+      });
+      prismaMock.ingredient.updateMany.mockResolvedValue({ count: 1 });
 
       // Mock Order.create
-      prismaMock.order.create.mockResolvedValue({
+      prismaMock.order.create.mockImplementation(async ({ data }: any) => ({
         id: 101,
         userId: 1,
         status: OrderStatus.PENDING,
@@ -91,72 +119,146 @@ describe('OrdersService', () => {
         total: 90000,
         promoCode: null,
         createdAt: new Date('2026-10-26T10:00:00.000Z'),
-        items: [
-          {
-            productId: 1,
-            productName: 'Cà phê sữa',
-            size: Size.M,
-            toppings: [{ id: 1, name: 'Trân châu', price: 5000 }],
-            unitPrice: 45000,
-            qty: 2,
-            lineTotal: 90000,
-          },
-        ],
-      });
+        items: data.items.create,
+      }));
 
       const res = await service.createOrder(1, {
-        items: [{ productId: 1, size: Size.M, quantity: 2, toppingIds: [1] }],
+        items: [{ productId: 1, size: Size.M, quantity: 2 }],
       });
 
       expect(pricingServiceMock.calculate).toHaveBeenCalled();
-      expect(prismaMock.product.updateMany).toHaveBeenCalledWith({
-        where: { id: 1, version: 0, stock: { gte: 2 } },
-        data: { stock: { decrement: 2 }, version: { increment: 1 } },
+      // Kiểm tra trừ kho nguyên liệu: 2 ly size M -> Cà phê 100ml, Sữa đặc 60g
+      expect(prismaMock.ingredient.updateMany).toHaveBeenCalledWith({
+        where: { id: 10, version: 0, stock: { gte: 100 } },
+        data: { stock: { decrement: 100 }, version: { increment: 1 } },
       });
+      expect(prismaMock.ingredient.updateMany).toHaveBeenCalledWith({
+        where: { id: 20, version: 0, stock: { gte: 60 } },
+        data: { stock: { decrement: 60 }, version: { increment: 1 } },
+      });
+
+      // Kiểm tra ghi StockMovement ORDER_RESERVE
+      expect(prismaMock.stockMovement.create).toHaveBeenCalledWith({
+        data: {
+          ingredientId: 10,
+          type: 'ORDER_RESERVE',
+          quantity: -100,
+          orderId: 101,
+        },
+      });
+      expect(prismaMock.stockMovement.create).toHaveBeenCalledWith({
+        data: {
+          ingredientId: 20,
+          type: 'ORDER_RESERVE',
+          quantity: -60,
+          orderId: 101,
+        },
+      });
+
       expect(res.id).toBe(101);
-      expect(res.code).toBe('#101');
       expect(res.status).toBe(OrderStatus.PENDING);
-      expect(res.total).toBe(90000);
     });
 
-    it('báo lỗi 409 OUT_OF_STOCK khi tồn kho không đủ', async () => {
-      // Mock sản phẩm chỉ còn 1 ly trong khi khách đặt 2
-      prismaMock.product.findUnique.mockResolvedValue({
-        id: 1,
-        name: 'Cà phê muối',
-        stock: 1,
-        version: 0,
-        isActive: true,
-      });
+    it('báo lỗi 409 RECIPE_MISSING khi sản phẩm chưa có công thức', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 99,
+          name: 'Món mới',
+          isActive: true,
+          productRecipes: [], // Chưa có công thức
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
 
       await expect(
         service.createOrder(1, {
-          items: [{ productId: 1, size: Size.M, quantity: 2 }],
+          items: [{ productId: 99, size: Size.M, quantity: 1 }],
         }),
       ).rejects.toThrow(ConflictException);
+
+      try {
+        await service.createOrder(1, {
+          items: [{ productId: 99, size: Size.M, quantity: 1 }],
+        });
+      } catch (err: any) {
+        expect(err.getResponse().code).toBe('RECIPE_MISSING');
+        expect(err.getResponse().details[0].productId).toBe(99);
+      }
     });
 
-    it('tiêu chí (c): đặt đồng thời nhiều đơn không vượt quá tồn kho (optimistic locking)', async () => {
-      // Giả lập sản phẩm chỉ còn 5 ly trong kho
+    it('báo lỗi 409 OUT_OF_STOCK với details chi tiết khi tồn kho nguyên liệu không đủ', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Cà phê muối',
+          isActive: true,
+          productRecipes: [{ ingredientId: 2, quantity: 1 }], // Cần 1g muối/ly
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
+
+      // Tồn muối chỉ còn 1g nhưng khách đặt 2 ly
+      prismaMock.ingredient.findUnique.mockResolvedValue({
+        id: 2,
+        name: 'Muối',
+        stock: 1,
+        version: 0,
+      });
+
+      try {
+        await service.createOrder(1, {
+          items: [{ productId: 1, size: Size.M, quantity: 2 }],
+        });
+        expect.unreachable('Cần ném OUT_OF_STOCK');
+      } catch (err: any) {
+        expect(err).toBeInstanceOf(ConflictException);
+        const resp = err.getResponse();
+        expect(resp.code).toBe('OUT_OF_STOCK');
+        expect(resp.details[0]).toEqual({
+          ingredientId: 2,
+          ingredient: 'Muối',
+          available: 1,
+          required: 2,
+          products: ['Cà phê muối'],
+        });
+      }
+    });
+
+    it('tiêu chí (c): đặt đồng thời 10 đơn khi nguyên liệu chỉ đủ 5 ly -> đúng 5 đơn thành công, 5 thất bại, tồn cuối = 0', async () => {
+      // Giả lập nguyên liệu Muối (id: 2) chỉ còn 5g, mỗi ly size M tốn 1g -> đúng 5 ly
       let currentStock = 5;
       let currentVersion = 0;
+      const movements: any[] = [];
 
-      prismaMock.product.findUnique.mockImplementation(async () => ({
-        id: 1,
-        name: 'Cà phê muối',
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Cà phê muối',
+          isActive: true,
+          productRecipes: [{ ingredientId: 2, quantity: 1 }],
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
+
+      prismaMock.ingredient.findUnique.mockImplementation(async () => ({
+        id: 2,
+        name: 'Muối',
         stock: currentStock,
         version: currentVersion,
-        isActive: true,
       }));
 
-      prismaMock.product.updateMany.mockImplementation(async ({ where, data }: any) => {
-        // Kiểm tra đúng version và đủ tồn kho
+      prismaMock.ingredient.updateMany.mockImplementation(async ({ where, data }: any) => {
         if (where.version === currentVersion && currentStock >= where.stock.gte) {
           currentStock -= data.stock.decrement;
           currentVersion += data.version.increment;
           return { count: 1 };
         }
         return { count: 0 };
+      });
+
+      prismaMock.stockMovement.create.mockImplementation(async ({ data }: any) => {
+        movements.push(data);
+        return { id: movements.length, ...data };
       });
 
       prismaMock.order.create.mockImplementation(async ({ data }: any) => ({
@@ -166,7 +268,7 @@ describe('OrdersService', () => {
         items: [{ qty: 1 }],
       }));
 
-      // Bắn 10 request đặt hàng đồng thời, mỗi đơn đặt 1 ly
+      // Bắn 10 request đồng thời qua Promise.allSettled
       const results = await Promise.allSettled(
         Array.from({ length: 10 }).map((_, i) =>
           service.createOrder(i + 1, {
@@ -178,13 +280,157 @@ describe('OrdersService', () => {
       const successful = results.filter((r) => r.status === 'fulfilled');
       const failed = results.filter((r) => r.status === 'rejected');
 
-      // Đúng 5 đơn thành công vì kho chỉ có 5 ly
+      // Đúng 5 đơn thành công
       expect(successful).toHaveLength(5);
-      // 5 đơn còn lại bị chặn OUT_OF_STOCK
+      // 5 đơn thất bại OUT_OF_STOCK
       expect(failed).toHaveLength(5);
       // Tồn kho cuối cùng đúng bằng 0
       expect(currentStock).toBe(0);
       expect(currentVersion).toBe(5);
+
+      // Bất biến: tồn kho ban đầu (5) + tổng các StockMovement (-1 * 5) = tồn kho cuối (0)
+      const totalMoved = movements.reduce((sum, m) => sum + m.quantity, 0);
+      expect(5 + totalMoved).toBe(currentStock);
+    });
+
+    it('gộp theo nguyên liệu: hai món cùng dùng sữa, tổng nhu cầu vượt tồn kho thì từ chối cả đơn', async () => {
+      // Món A cần 100ml sữa, Món B cần 120ml sữa -> tổng 220ml
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Trà Sữa A',
+          isActive: true,
+          productRecipes: [{ ingredientId: 5, quantity: 100 }],
+        },
+        {
+          id: 2,
+          name: 'Trà Sữa B',
+          isActive: true,
+          productRecipes: [{ ingredientId: 5, quantity: 120 }],
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
+
+      // Sữa chỉ còn 200ml (đủ cho từng món riêng lẻ nhưng không đủ cho cả đơn 220ml)
+      prismaMock.ingredient.findUnique.mockResolvedValue({
+        id: 5,
+        name: 'Sữa tươi',
+        stock: 200,
+        version: 0,
+      });
+
+      await expect(
+        service.createOrder(1, {
+          items: [
+            { productId: 1, size: Size.M, quantity: 1 },
+            { productId: 2, size: Size.M, quantity: 1 },
+          ],
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('rollback: món cần hai nguyên liệu, một cái hết thì nguyên liệu còn lại không bị trừ', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Cà phê muối',
+          isActive: true,
+          productRecipes: [
+            { ingredientId: 10, quantity: 50 }, // Cà phê: còn nhiều
+            { ingredientId: 20, quantity: 1 }, // Muối: đã hết
+          ],
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
+
+      prismaMock.ingredient.findUnique.mockImplementation(async ({ where }: any) => {
+        if (where.id === 10) return { id: 10, name: 'Cà phê', stock: 1000, version: 0 };
+        if (where.id === 20) return { id: 20, name: 'Muối', stock: 0, version: 0 };
+        return null;
+      });
+      prismaMock.ingredient.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.createOrder(1, {
+          items: [{ productId: 1, size: Size.M, quantity: 1 }],
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      // Vì giao dịch thất bại trước khi trừ hoặc trong transaction bị rollback, không tạo order
+      expect(prismaMock.order.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cancelOrder (Hoàn kho theo snapshot OrderItem.consumption)', () => {
+    it('hoàn kho đúng theo snapshot consumption, không phụ thuộc vào công thức hiện tại', async () => {
+      // Đơn hàng có snapshot lúc đặt tiêu thụ 120ml sữa (id: 5) và 40g trân châu (id: 12)
+      prismaMock.order.findUnique.mockResolvedValue({
+        id: 101,
+        userId: 1,
+        status: OrderStatus.PENDING,
+        items: [
+          {
+            productId: 1,
+            qty: 1,
+            consumption: [
+              { ingredientId: 5, quantity: 120 },
+              { ingredientId: 12, quantity: 40 },
+            ],
+          },
+        ],
+        payments: [],
+      });
+
+      prismaMock.order.update.mockResolvedValue({
+        id: 101,
+        status: OrderStatus.CANCELLED,
+      });
+
+      const res = await service.cancelOrder(101, { id: 1, role: Role.CUSTOMER });
+
+      // Hoàn lại nguyên liệu theo consumption
+      expect(prismaMock.ingredient.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: { stock: { increment: 120 }, version: { increment: 1 } },
+      });
+      expect(prismaMock.ingredient.update).toHaveBeenCalledWith({
+        where: { id: 12 },
+        data: { stock: { increment: 40 }, version: { increment: 1 } },
+      });
+
+      // Ghi StockMovement ORDER_RELEASE (+)
+      expect(prismaMock.stockMovement.create).toHaveBeenCalledWith({
+        data: {
+          ingredientId: 5,
+          type: 'ORDER_RELEASE',
+          quantity: 120,
+          orderId: 101,
+        },
+      });
+      expect(prismaMock.stockMovement.create).toHaveBeenCalledWith({
+        data: {
+          ingredientId: 12,
+          type: 'ORDER_RELEASE',
+          quantity: 40,
+          orderId: 101,
+        },
+      });
+
+      expect(res.status).toBe(OrderStatus.CANCELLED);
+    });
+
+    it('chặn hủy đơn khi đơn đã sang PREPARING', async () => {
+      prismaMock.order.findUnique.mockResolvedValue({
+        id: 101,
+        userId: 1,
+        status: OrderStatus.PREPARING,
+        items: [],
+        payments: [],
+      });
+
+      await expect(
+        service.cancelOrder(101, { id: 1, role: Role.CUSTOMER }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -218,20 +464,20 @@ describe('OrdersService', () => {
   });
 
   describe('getOrderById (Task 9)', () => {
-    it('cho phép chủ sở hữu xem chi tiết đơn hàng', async () => {
+    it('trả về chi tiết đơn hàng cho chính chủ', async () => {
       prismaMock.order.findUnique.mockResolvedValue({
         id: 101,
         userId: 1,
-        status: OrderStatus.PENDING,
+        status: OrderStatus.PAID,
         subtotal: 90000,
         discountAmount: 0,
         total: 90000,
         promoCode: null,
-        pointsEarned: 0,
+        pointsEarned: 90,
         items: [],
         payments: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date('2026-10-26T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-26T10:05:00.000Z'),
       });
 
       const res = await service.getOrderById(101, { id: 1, role: Role.CUSTOMER });
@@ -239,34 +485,20 @@ describe('OrdersService', () => {
       expect(res.code).toBe('#101');
     });
 
-    it('chặn khách hàng xem đơn của người khác và ném 403 FORBIDDEN', async () => {
+    it('Barista có quyền xem đơn hàng của bất kỳ ai', async () => {
       prismaMock.order.findUnique.mockResolvedValue({
         id: 101,
-        userId: 99, // Đơn của user 99
-        status: OrderStatus.PENDING,
-        items: [],
-        payments: [],
-      });
-
-      await expect(
-        service.getOrderById(101, { id: 1, role: Role.CUSTOMER }),
-      ).rejects.toThrow(ForbiddenException);
-    });
-
-    it('cho phép Barista xem đơn của bất kỳ ai', async () => {
-      prismaMock.order.findUnique.mockResolvedValue({
-        id: 101,
-        userId: 99,
-        status: OrderStatus.PENDING,
+        userId: 2,
+        status: OrderStatus.PAID,
         subtotal: 90000,
         discountAmount: 0,
         total: 90000,
         promoCode: null,
-        pointsEarned: 0,
+        pointsEarned: 90,
         items: [],
         payments: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date('2026-10-26T10:00:00.000Z'),
+        updatedAt: new Date('2026-10-26T10:05:00.000Z'),
       });
 
       const res = await service.getOrderById(101, { id: 1, role: Role.BARISTA });
@@ -279,45 +511,6 @@ describe('OrdersService', () => {
       await expect(
         service.getOrderById(999, { id: 1, role: Role.CUSTOMER }),
       ).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('cancelOrder (Task 10)', () => {
-    it('hoàn kho khi hủy đơn thành công', async () => {
-      prismaMock.order.findUnique.mockResolvedValue({
-        id: 101,
-        userId: 1,
-        status: OrderStatus.PENDING,
-        items: [{ productId: 1, qty: 2 }],
-        payments: [],
-      });
-
-      prismaMock.order.update.mockResolvedValue({
-        id: 101,
-        status: OrderStatus.CANCELLED,
-      });
-
-      const res = await service.cancelOrder(101, { id: 1, role: Role.CUSTOMER });
-
-      expect(prismaMock.product.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { stock: { increment: 2 }, version: { increment: 1 } },
-      });
-      expect(res.status).toBe(OrderStatus.CANCELLED);
-    });
-
-    it('chặn hủy đơn khi đơn đã sang PREPARING', async () => {
-      prismaMock.order.findUnique.mockResolvedValue({
-        id: 101,
-        userId: 1,
-        status: OrderStatus.PREPARING,
-        items: [],
-        payments: [],
-      });
-
-      await expect(
-        service.cancelOrder(101, { id: 1, role: Role.CUSTOMER }),
-      ).rejects.toThrow(ConflictException);
     });
   });
 

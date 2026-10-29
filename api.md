@@ -871,12 +871,13 @@ Cả 7 endpoint và 5 thực thể trong mục 12 của đề đều có trong t
 
 - Nếu thiếu thời gian, có thể cắt mà không mất yêu cầu nào của đề: GET /toppings, GET /auth/me, POST /promotions/validate, LoyaltyTransaction, GET /health. Nên giữ PATCH /orders/:id/status và cancel để demo được state machine.
 
-### 12.5. Phần mở rộng Barista (B)
-
-| Endpoint                          | Có trong đề | Đánh giá | Ghi chú |
-|-----------------------------------|-------------|----------|---------|
-| GET /orders                       | Không       | Thêm     | Hàng đợi đơn cho barista |
-| POST /products/:id/stock          | Không       | Thêm     | Nhập kho cộng dồn |
-| GET /products/:id/stock-movements | Không       | Thêm     | Tùy chọn, cần bảng StockMovement |
-
 Đề ghi chức năng nhân viên quầy là phần mở rộng ngoài MVP, nên các mục (B) không tính điểm 10 task. Chỉ làm sau khi xong các mục bắt buộc.
+
+### 12.6. Quản lý kho theo công thức nguyên liệu (v1.3)
+
+Chi tiết đặc tả đầy đủ xem tại `apicongthuc.md`:
+- Chuyển toàn bộ kho từ số ly `Product.stock` sang nguyên liệu `Ingredient.stock` và công thức `ProductRecipe`, `ToppingRecipe`.
+- Bổ sung nhóm API nguyên liệu 🔒B: `GET /ingredients`, `POST /ingredients`, `PATCH /ingredients/:id`, `POST /ingredients/:id/stock`, `POST /ingredients/:id/adjust`, `GET /ingredients/:id/movements`.
+- Bổ sung nhóm API công thức 🔒B: `GET/PUT /products/:id/recipe`, `GET/PUT /toppings/:id/recipe`.
+- Nâng cấp `POST /orders` và `POST /orders/:id/cancel` trừ kho và hoàn kho theo snapshot nguyên liệu `OrderItem.consumption`.
+- Xóa bỏ các cột cũ `Product.stock` và `Product.version`.

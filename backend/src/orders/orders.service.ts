@@ -8,8 +8,9 @@ import {
 import { OrderStatus, Role } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PricingService } from '../common/pricing/pricing.service.js';
+import { RecipeService } from '../common/recipe/recipe.service.js';
 import { assertTransition } from './order-state.js';
-import { CreateOrderDto } from './dto/create-order.dto.js';
+import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto.js';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto.js';
 
 export interface UserContext {
@@ -22,83 +23,25 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingService: PricingService,
+    private readonly recipeService: RecipeService,
   ) {}
 
   /**
    * Task 6 & Task 10: POST /orders
    * Tạo đơn hàng ở trạng thái PENDING từ giỏ hàng.
    * Tính lại giá bằng PricingService (không tin giá client).
-   * Kiểm soát tồn kho bằng transaction và optimistic locking (Product.version).
+   * Kiểm soát tồn kho theo nguyên liệu bằng transaction và optimistic locking (Ingredient.version).
    */
   async createOrder(userId: number, dto: CreateOrderDto) {
-    // 1. Tổng hợp số lượng tồn kho cần cho từng productId (tránh trường hợp cùng 1 sản phẩm đặt nhiều size)
-    const requiredStock = new Map<number, number>();
-    for (const item of dto.items) {
-      const current = requiredStock.get(item.productId) || 0;
-      requiredStock.set(item.productId, current + item.quantity);
-    }
-
-    // Sắp xếp productId tăng dần để phòng tránh deadlock trong transaction
-    const sortedProductIds = [...requiredStock.keys()].sort((a, b) => a - b);
-
     const MAX_RETRIES = 10;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          // 2. Giữ tồn kho bằng optimistic locking (Product.version)
-          for (const productId of sortedProductIds) {
-            const neededQty = requiredStock.get(productId)!;
-            const current = await tx.product.findUnique({
-              where: { id: productId },
-              select: { id: true, name: true, stock: true, version: true, isActive: true },
-            });
+          // 1. Giữ tồn kho nguyên liệu theo công thức bằng optimistic locking (Ingredient.version)
+          const reservation = await this.reserveStock(tx, dto.items);
 
-            if (!current || !current.isActive) {
-              throw new NotFoundException({
-                code: 'PRODUCT_NOT_FOUND',
-                message: `Không tìm thấy sản phẩm #${productId}`,
-                details: [{ productId }],
-              });
-            }
-
-            if (current.stock < neededQty) {
-              throw new ConflictException({
-                code: 'OUT_OF_STOCK',
-                message: `Sản phẩm '${current.name}' chỉ còn ${current.stock} phần`,
-                details: [{ productId: current.id, available: current.stock, requested: neededQty }],
-              });
-            }
-
-            // Trừ kho có điều kiện version và stock >= neededQty
-            const res = await tx.product.updateMany({
-              where: {
-                id: productId,
-                version: current.version,
-                stock: { gte: neededQty },
-              },
-              data: {
-                stock: { decrement: neededQty },
-                version: { increment: 1 },
-              },
-            });
-
-            if (res.count === 0) {
-              // Kiểm tra xem thật sự hết hàng hay do tranh chấp version
-              const latest = await tx.product.findUnique({ where: { id: productId } });
-              if (!latest || latest.stock < neededQty) {
-                throw new ConflictException({
-                  code: 'OUT_OF_STOCK',
-                  message: `Sản phẩm '${current.name}' chỉ còn ${latest?.stock ?? 0} phần`,
-                  details: [{ productId: current.id, available: latest?.stock ?? 0, requested: neededQty }],
-                });
-              }
-              // Còn hàng nhưng version đã bị đổi bởi request khác: ném STOCK_RETRY để thử lại
-              throw new Error('STOCK_RETRY');
-            }
-          }
-
-          // 3. Tính lại giá trên server (nguồn chân lý duy nhất)
+          // 2. Tính lại giá trên server (nguồn chân lý duy nhất)
           const pricing = await this.pricingService.calculate(dto.items, tx);
           const subtotal = pricing.subtotal;
           let discountAmount = 0;
@@ -185,11 +128,12 @@ export class OrdersService {
               promoCode: dto.promoCode || null,
               pointsEarned: 0,
               items: {
-                create: pricing.lines.map((line) => ({
+                create: pricing.lines.map((line, idx) => ({
                   productId: line.productId,
                   productName: line.productName,
                   size: line.size,
                   toppings: line.toppings,
+                  consumption: reservation.lineConsumptions[idx] ?? [],
                   unitPrice: line.unitPrice,
                   qty: line.qty,
                   lineTotal: line.lineTotal,
@@ -201,6 +145,18 @@ export class OrdersService {
               items: true,
             },
           });
+
+          // 6. Ghi nhật ký biến động kho (StockMovement) cho từng nguyên liệu đã giữ
+          for (const [ingredientId, qty] of reservation.orderNeedsMap.entries()) {
+            await tx.stockMovement.create({
+              data: {
+                ingredientId,
+                type: 'ORDER_RESERVE',
+                quantity: -qty,
+                orderId: newOrder.id,
+              },
+            });
+          }
 
           return {
             id: newOrder.id,
@@ -407,16 +363,8 @@ export class OrdersService {
       // Kiểm tra chuyển trạng thái qua State Machine
       assertTransition(order.status, OrderStatus.CANCELLED);
 
-      // 1. Hoàn kho cho từng sản phẩm
-      for (const item of order.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: { increment: item.qty },
-            version: { increment: 1 },
-          },
-        });
-      }
+      // 1. Hoàn kho nguyên liệu theo snapshot consumption
+      await this.releaseStock(tx, order);
 
       // 2. Hoàn lại số lượt sử dụng mã giảm giá (usedCount)
       if (order.promoCode) {
@@ -588,5 +536,191 @@ export class OrdersService {
         totalPages,
       },
     };
+  }
+
+  /**
+   * Giữ tồn kho nguyên liệu theo công thức bằng optimistic locking (Ingredient.version).
+   * Sắp xếp ingredientId tăng dần để phòng tránh deadlock.
+   */
+  private async reserveStock(tx: any, items: CreateOrderItemDto[]) {
+    const productIds = [...new Set(items.map((i) => i.productId))];
+    const toppingIds = [...new Set(items.flatMap((i) => i.toppingIds ?? []))];
+
+    const [products, toppings] = await Promise.all([
+      tx.product.findMany({
+        where: { id: { in: productIds } },
+        include: { productRecipes: true },
+      }),
+      toppingIds.length > 0
+        ? tx.topping.findMany({
+            where: { id: { in: toppingIds } },
+            include: { toppingRecipes: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const productMap = new Map<number, any>(products.map((p: any) => [p.id, p]));
+    const toppingMap = new Map<number, any>(toppings.map((t: any) => [t.id, t]));
+
+    for (const item of items) {
+      const product = productMap.get(item.productId);
+      if (!product || !product.isActive) {
+        throw new NotFoundException({
+          code: 'PRODUCT_NOT_FOUND',
+          message: `Không tìm thấy sản phẩm #${item.productId}`,
+          details: [{ productId: item.productId }],
+        });
+      }
+      if (!product.productRecipes || product.productRecipes.length === 0) {
+        throw new ConflictException({
+          code: 'RECIPE_MISSING',
+          message: `Sản phẩm '${product.name}' chưa có công thức`,
+          details: [{ productId: product.id }],
+        });
+      }
+    }
+
+    const lineConsumptions: { ingredientId: number; quantity: number }[][] = [];
+    const ingredientAffectedProducts = new Map<number, Set<string>>();
+    const orderNeedsMap = new Map<number, number>();
+
+    for (const item of items) {
+      const product = productMap.get(item.productId)!;
+      const itemToppings = (item.toppingIds ?? [])
+        .map((id) => toppingMap.get(id))
+        .filter(Boolean);
+
+      const lineMap = this.recipeService.calculateLine(
+        {
+          id: product.id,
+          name: product.name,
+          recipes: product.productRecipes,
+        },
+        item.size,
+        itemToppings.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          recipes: t.toppingRecipes,
+        })),
+        item.quantity,
+      );
+
+      const consumption: { ingredientId: number; quantity: number }[] = [];
+      for (const [ingredientId, amount] of lineMap.entries()) {
+        consumption.push({ ingredientId, quantity: amount });
+        orderNeedsMap.set(ingredientId, (orderNeedsMap.get(ingredientId) || 0) + amount);
+
+        let productSet = ingredientAffectedProducts.get(ingredientId);
+        if (!productSet) {
+          productSet = new Set<string>();
+          ingredientAffectedProducts.set(ingredientId, productSet);
+        }
+        productSet.add(product.name);
+      }
+      lineConsumptions.push(consumption);
+    }
+
+    const sortedIngredientIds = [...orderNeedsMap.keys()].sort((a, b) => a - b);
+
+    for (const ingredientId of sortedIngredientIds) {
+      const neededQty = orderNeedsMap.get(ingredientId)!;
+      const current = await tx.ingredient.findUnique({
+        where: { id: ingredientId },
+        select: { id: true, name: true, stock: true, version: true },
+      });
+
+      if (!current) {
+        throw new NotFoundException({
+          code: 'INGREDIENT_NOT_FOUND',
+          message: `Không tìm thấy nguyên liệu #${ingredientId}`,
+        });
+      }
+
+      const affectedProducts = Array.from(ingredientAffectedProducts.get(ingredientId) || []);
+
+      if (current.stock < neededQty) {
+        throw new ConflictException({
+          code: 'OUT_OF_STOCK',
+          message: `Không đủ ${current.name} để pha chế`,
+          details: [
+            {
+              ingredientId: current.id,
+              ingredient: current.name,
+              available: current.stock,
+              required: neededQty,
+              products: affectedProducts,
+            },
+          ],
+        });
+      }
+
+      const res = await tx.ingredient.updateMany({
+        where: {
+          id: ingredientId,
+          version: current.version,
+          stock: { gte: neededQty },
+        },
+        data: {
+          stock: { decrement: neededQty },
+          version: { increment: 1 },
+        },
+      });
+
+      if (res.count === 0) {
+        const latest = await tx.ingredient.findUnique({ where: { id: ingredientId } });
+        if (!latest || latest.stock < neededQty) {
+          throw new ConflictException({
+            code: 'OUT_OF_STOCK',
+            message: `Không đủ ${current.name} để pha chế`,
+            details: [
+              {
+                ingredientId: current.id,
+                ingredient: current.name,
+                available: latest?.stock ?? 0,
+                required: neededQty,
+                products: affectedProducts,
+              },
+            ],
+          });
+        }
+        throw new Error('STOCK_RETRY');
+      }
+    }
+
+    return { lineConsumptions, orderNeedsMap };
+  }
+
+  /**
+   * Hoàn kho nguyên liệu đúng theo snapshot OrderItem.consumption (không tính lại từ công thức hiện tại).
+   */
+  private async releaseStock(tx: any, order: { id: number; items: any[] }) {
+    const releaseMap = new Map<number, number>();
+    for (const item of order.items) {
+      const consumption = (item.consumption as { ingredientId: number; quantity: number }[]) || [];
+      for (const c of consumption) {
+        releaseMap.set(c.ingredientId, (releaseMap.get(c.ingredientId) || 0) + c.quantity);
+      }
+    }
+
+    const sortedIngredientIds = [...releaseMap.keys()].sort((a, b) => a - b);
+    for (const ingredientId of sortedIngredientIds) {
+      const qty = releaseMap.get(ingredientId)!;
+      await tx.ingredient.update({
+        where: { id: ingredientId },
+        data: {
+          stock: { increment: qty },
+          version: { increment: 1 },
+        },
+      });
+
+      await tx.stockMovement.create({
+        data: {
+          ingredientId,
+          type: 'ORDER_RELEASE',
+          quantity: qty,
+          orderId: order.id,
+        },
+      });
+    }
   }
 }

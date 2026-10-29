@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ConflictException } from '@nestjs/common';
 import { OrderStatus } from '../generated/prisma/client.js';
-import { assertTransition, ORDER_TRANSITIONS } from './order-state.js';
+import { assertTransition } from './order-state.js';
 
 describe('Order State Machine - assertTransition', () => {
   it('cho phép toàn bộ các bước chuyển tiếp hợp lệ trong luồng chính (happy path)', () => {

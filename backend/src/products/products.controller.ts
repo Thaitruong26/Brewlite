@@ -4,7 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,14 +17,20 @@ import {
 } from '@nestjs/swagger';
 import { ProductsService } from './products.service.js';
 import { GetProductsDto } from './dto/get-products.dto.js';
-import { AddStockDto } from './dto/add-stock.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
-import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import { RolesGuard } from '../auth/guards/roles.guard.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { Role } from '../generated/prisma/client.js';
+import { IngredientsService } from '../ingredients/ingredients.service.js';
+import { UpdateRecipeDto } from '../ingredients/dto/update-recipe.dto.js';
 
 @ApiTags('products')
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    private readonly ingredientsService: IngredientsService,
+  ) {}
 
   /** GET /api/products */
   @Get()
@@ -46,20 +52,37 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
-  /** POST /api/products/:id/stock (Barista) */
-  @Post(':id/stock')
-  @UseGuards(JwtAuthGuard)
+  /** 4.7. GET /api/products/:id/recipe (Barista) */
+  @Get(':id/recipe')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.BARISTA)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Barista nhập thêm tồn kho cho sản phẩm (Mở rộng Barista)' })
+  @ApiOperation({ summary: 'Lấy công thức sản phẩm ở size M (Barista)' })
   @ApiParam({ name: 'id', description: 'ID sản phẩm', example: 1 })
-  @ApiResponse({ status: 200, description: 'Cập nhật tồn kho thành công' })
-  @ApiResponse({ status: 403, description: 'Chỉ nhân viên Barista mới có quyền' })
-  addStock(
+  @ApiResponse({ status: 200, description: 'Lấy công thức thành công' })
+  @ApiResponse({ status: 401, description: 'Chưa đăng nhập' })
+  @ApiResponse({ status: 403, description: 'Chỉ Barista có quyền' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy sản phẩm' })
+  getProductRecipe(@Param('id', ParseIntPipe) id: number) {
+    return this.ingredientsService.getProductRecipe(id);
+  }
+
+  /** 4.7. PUT /api/products/:id/recipe (Barista) */
+  @Put(':id/recipe')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.BARISTA)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cập nhật toàn bộ công thức sản phẩm ở size M (Barista)' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm', example: 1 })
+  @ApiResponse({ status: 200, description: 'Cập nhật công thức thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ (trùng nguyên liệu)' })
+  @ApiResponse({ status: 401, description: 'Chưa đăng nhập' })
+  @ApiResponse({ status: 403, description: 'Chỉ Barista có quyền' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy sản phẩm hoặc nguyên liệu' })
+  updateProductRecipe(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AddStockDto,
-    @CurrentUser() user: any,
+    @Body() dto: UpdateRecipeDto,
   ) {
-    return this.productsService.addStock(id, dto.quantity, user);
+    return this.ingredientsService.updateProductRecipe(id, dto);
   }
 }
-
