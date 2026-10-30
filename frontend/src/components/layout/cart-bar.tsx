@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCartStore, selectTotalItems, selectTotalAmount } from "@/store/cart-store";
 
 const formatVnd = (amount: number) => new Intl.NumberFormat("vi-VN").format(amount);
@@ -10,10 +11,11 @@ const formatVnd = (amount: number) => new Intl.NumberFormat("vi-VN").format(amou
  * Chỉ hiển thị trên mobile (md:hidden), desktop dùng header cart link thay thế.
  */
 export function CartBar() {
+  const pathname = usePathname();
   const totalItems = useCartStore(selectTotalItems);
   const totalAmount = useCartStore(selectTotalAmount);
 
-  if (totalItems === 0) return null;
+  if (totalItems === 0 || pathname.startsWith("/barista")) return null;
 
   return (
     <div className="fixed inset-x-0 bottom-16 z-30 px-3 pb-2 md:hidden">

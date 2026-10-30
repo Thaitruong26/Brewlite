@@ -27,6 +27,8 @@ export function SiteHeader() {
 
   useEffect(() => { hydrate(); }, [hydrate]);
 
+  if (pathname.startsWith("/barista")) return null;
+
   return (
     <header className="sticky top-0 z-30 border-b border-[#315744] bg-[#183d2c] text-[#fbf8ef]">
       <div className="mx-auto grid h-[68px] max-w-7xl grid-cols-[1fr_auto] items-center px-4 sm:px-8 md:grid-cols-[1fr_auto_1fr] md:px-10">
@@ -72,6 +74,14 @@ export function SiteHeader() {
         <div className="col-start-2 flex items-center justify-end gap-2 md:col-start-3">
           {user ? (
             <div className="flex items-center gap-2">
+              {user.role === "BARISTA" && (
+                <Link
+                  href="/barista"
+                  className="rounded-full bg-[#a94f0c] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#8f4008] sm:text-sm"
+                >
+                  Quầy Barista
+                </Link>
+              )}
               <span className="hidden text-sm font-medium text-[#f6f3e8] sm:block">
                 {user.fullName.split(" ").pop()}
               </span>

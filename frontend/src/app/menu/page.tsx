@@ -10,6 +10,7 @@ import type { Product } from "@/lib/api/types";
 import { ProductImage } from "@/components/products/product-image";
 import { ErrorState } from "@/components/ui/error-state";
 import { ProductCardSkeleton } from "@/components/ui/loading-state";
+import { matchesMenuProduct, useStockStore } from "@/store/stock-store";
 
 const formatVnd = (price: number) => new Intl.NumberFormat("vi-VN").format(price);
 
@@ -257,6 +258,19 @@ export default function MenuPage() {
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [showFixtures, setShowFixtures] = useState(false);
+  const availability = useStockStore((state) => state.availability);
+  const hydrateAvailability = useStockStore((state) => state.hydrate);
+
+  useEffect(() => {
+    hydrateAvailability();
+    const sync = () => hydrateAvailability();
+    window.addEventListener("brewlite:stock-availability-change", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("brewlite:stock-availability-change", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [hydrateAvailability]);
 
   const query = useQuery({
     queryKey: ["products", { category, page: 1, limit: 20 }],
@@ -272,13 +286,16 @@ export default function MenuPage() {
   const result = fixtureResult ?? query.data;
 
   const products = useMemo(() => {
-    const allProducts = result?.data ?? [];
+    const allProducts = (result?.data ?? []).map((product) => {
+      const override = Object.entries(availability).find(([sku]) => matchesMenuProduct(sku, product.name));
+      return override ? { ...product, inStock: override[1] } : product;
+    });
     return search.trim()
       ? allProducts.filter((p) =>
         p.name.toLowerCase().includes(search.trim().toLowerCase()),
       )
       : allProducts;
-  }, [result, search]);
+  }, [availability, result, search]);
 
   const categories = useMemo(() => {
     const all = [

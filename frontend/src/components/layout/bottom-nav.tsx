@@ -47,6 +47,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const totalItems = useCartStore(selectTotalItems);
 
+  if (pathname.startsWith("/barista")) return null;
+
   return (
     <nav
       aria-label="Điều hướng chính"
