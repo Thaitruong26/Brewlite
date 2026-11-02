@@ -2,10 +2,10 @@ import { ConflictException } from '@nestjs/common';
 import { OrderStatus } from '../generated/prisma/client.js';
 
 /**
- * Bảng định nghĩa chuyển tiếp trạng thái hợp lệ của đơn hàng (Mục 5 & 9.1 tài liệu API):
+ * Bảng định nghĩa chuyển tiếp trạng thái hợp lệ của đơn hàng (Mục 5 & 9.1 tài liệu API / A1.md):
  * PENDING        → PAID | PAYMENT_FAILED | CANCELLED
- * PAYMENT_FAILED → PAID | CANCELLED
- * PAID           → PREPARING | CANCELLED
+ * PAYMENT_FAILED → PAID | CANCELLED | PENDING | PAYMENT_FAILED (thử lại thanh toán)
+ * PAID           → PREPARING | CANCELLED (KHÔNG được nhảy thẳng sang READY)
  * PREPARING      → READY
  * READY          → COMPLETED
  * COMPLETED      → (trạng thái kết thúc)
@@ -13,8 +13,8 @@ import { OrderStatus } from '../generated/prisma/client.js';
  */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING: [OrderStatus.PAID, OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED],
-  PAYMENT_FAILED: [OrderStatus.PAID, OrderStatus.CANCELLED],
-  PAID: [OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.CANCELLED],
+  PAYMENT_FAILED: [OrderStatus.PAID, OrderStatus.CANCELLED, OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED],
+  PAID: [OrderStatus.PREPARING, OrderStatus.CANCELLED],
   PREPARING: [OrderStatus.READY],
   READY: [OrderStatus.COMPLETED],
   COMPLETED: [],

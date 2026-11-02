@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   HttpException,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PaymentsService } from './payments.service.js';
@@ -154,7 +155,7 @@ describe('PaymentsService', () => {
       expect(loyaltyService.award).not.toHaveBeenCalled();
     });
 
-    it('should throw ConflictException if key is reused with a different request payload', async () => {
+    it('should throw UnprocessableEntityException 422 if key is reused with a different request payload', async () => {
       prisma.payment.findUnique.mockResolvedValue({
         id: 100,
         idempotencyKey: key,
@@ -164,7 +165,26 @@ describe('PaymentsService', () => {
 
       await expect(
         service.createPayment(validDto, key, mockUser),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(UnprocessableEntityException);
+    });
+
+    it('should allow retry payment if order status is PAYMENT_FAILED', async () => {
+      const failedOrder = { ...mockOrder, status: 'PAYMENT_FAILED' };
+      prisma.payment.findUnique.mockResolvedValue(null);
+      prisma.order.findUnique.mockResolvedValue(failedOrder);
+      prisma.payment.create.mockResolvedValue({ id: 102, ...validDto, status: 'PROCESSING' });
+      prisma.payment.update.mockResolvedValue({
+        id: 102,
+        status: 'SUCCESS',
+        responseSnapshot: { paymentId: 102, status: 'SUCCESS', amount: 50000 },
+      });
+
+      const result = await service.createPayment(validDto, 'retry-key', mockUser);
+      expect(result).toHaveProperty('status', 'SUCCESS');
+      expect(prisma.order.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { status: 'PAID' },
+      });
     });
 
     it('should handle mock failure by returning 402 and updating order to PAYMENT_FAILED', async () => {

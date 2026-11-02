@@ -3,7 +3,6 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { MOCK_CART_ITEMS } from "@/lib/mock-checkout";
 
 export type Size = "S" | "M" | "L";
 export type CartTopping = { id: number; name: string; price: number };
@@ -189,43 +188,7 @@ export const useCartStore = create<CartState>()(
       setPromoCode: (promoCode, discountAmount = 0) =>
         set({ promoCode, discountAmount }),
 
-      loadSampleCart: () => {
-        const sampleItems: CartItem[] = MOCK_CART_ITEMS.map((item) => {
-          const key =
-            item.id ||
-            cartItemKey(
-              item.productId,
-              item.size,
-              item.toppings.map((t) => t.id),
-            );
-          return {
-            key,
-            id: key,
-            productId: item.productId,
-            name: item.productName,
-            productName: item.productName,
-            imageUrl: item.imageUrl || "/img/cappuccino.jpg",
-            size: item.size,
-            sizeSurcharge: item.sizeSurcharge || 0,
-            toppings: item.toppings || [],
-            toppingIds: item.toppings.map((t) => t.id),
-            quantity: item.quantity,
-            qty: item.quantity,
-            basePrice: item.basePrice || 0,
-            lineTotal:
-              (item.basePrice +
-                (item.sizeSurcharge || 0) +
-                item.toppings.reduce((s, t) => s + t.price, 0)) *
-              item.quantity,
-            note: item.note,
-          };
-        });
-        set({
-          items: sampleItems,
-          promoCode: "GIAM10",
-          discountAmount: 10000,
-        });
-      },
+      loadSampleCart: () => {},
 
       getSubtotal: () => {
         const items = get().items;

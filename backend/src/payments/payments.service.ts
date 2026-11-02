@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  UnprocessableEntityException,
   Optional,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
@@ -53,9 +54,10 @@ export class PaymentsService {
 
     if (existing) {
       if (existing.requestHash !== requestHash) {
-        throw new ConflictException(
-          'Idempotency-Key was used with a different request',
-        );
+        throw new UnprocessableEntityException({
+          code: 'IDEMPOTENCY_KEY_REUSED',
+          message: 'Idempotency-Key was used with a different request',
+        });
       }
 
      if (existing.status === 'FAILED') {
@@ -84,10 +86,11 @@ export class PaymentsService {
       throw new ForbiddenException('Bạn không có quyền thanh toán đơn hàng này');
     }
 
-    if (order.status !== 'PENDING') {
-      throw new BadRequestException(
-        'Order is not available for payment',
-      );
+    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_AVAILABLE_FOR_PAYMENT',
+        message: 'Order is not available for payment',
+      });
     }
 
     if (order.createdAt) {

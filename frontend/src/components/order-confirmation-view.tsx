@@ -199,13 +199,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             >
               Thử tải lại (GET /orders/{orderId})
             </button>
-            <button
-              type="button"
-              onClick={loadMockOrder}
-              className="w-full py-2.5 px-4 rounded-xl border border-amber-800 bg-amber-50 text-amber-900 text-sm font-semibold hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-              Xem bằng Dữ liệu giả (Mock Order #{orderId})
-            </button>
+
             <Link
               href="/"
               className="w-full py-2.5 px-4 rounded-xl border border-stone-200 text-stone-700 text-sm font-medium hover:bg-stone-50 transition-colors"
@@ -257,23 +251,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       </header>
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Thông báo nguồn dữ liệu */}
-        {isUsingMockData && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
-            <span>
-              💡 Đang hiển thị dữ liệu xác nhận đơn từ bộ nhớ giả lập theo chuẩn{" "}
-              <code className="font-mono">GET /orders/:id</code> trong{" "}
-              <code className="font-mono">docs/api.md</code>.
-            </span>
-            <button
-              type="button"
-              onClick={fetchOrder}
-              className="font-semibold underline hover:text-amber-950 shrink-0 cursor-pointer"
-            >
-              Gọi lại API thật
-            </button>
-          </div>
-        )}
+
 
         {/* Thẻ xác nhận chính: Mã đơn, trạng thái PAID và dòng "Mời tới quầy lấy nước" */}
         <section className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm text-center relative overflow-hidden">

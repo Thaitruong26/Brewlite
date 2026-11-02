@@ -42,7 +42,6 @@ export default function CheckoutPage() {
     promoCode,
     discountAmount: storeDiscountAmount,
     clearCart,
-    loadSampleCart,
     getSubtotal,
     getTotal,
   } = useCartStore();
@@ -320,18 +319,7 @@ export default function CheckoutPage() {
               >
                 Quay lại Thực đơn
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  loadSampleCart();
-                  setCurrentOrder(null);
-                  setErrorState(null);
-                  setIdempotencyKey(generateUUID());
-                }}
-                className="px-5 py-2.5 rounded-xl border border-amber-800 text-amber-900 bg-amber-50 hover:bg-amber-100 text-sm font-semibold transition-colors cursor-pointer"
-              >
-                Nạp giỏ hàng mẫu (docs/api.md)
-              </button>
+
             </div>
           </div>
         ) : (
@@ -491,18 +479,7 @@ export default function CheckoutPage() {
                     <code className="font-mono">localStorage</code> (giữ nguyên
                     nếu thanh toán lỗi 402).
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      loadSampleCart();
-                      setCurrentOrder(null);
-                      setErrorState(null);
-                      setIdempotencyKey(generateUUID());
-                    }}
-                    className="text-amber-800 hover:underline font-medium cursor-pointer"
-                  >
-                    Đặt lại dữ liệu mẫu
-                  </button>
+
                 </div>
               </section>
             </div>
