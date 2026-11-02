@@ -540,22 +540,33 @@ export default function BaristaPage() {
                       {order.note && <div className="rounded-xl bg-[#edede8] px-3 py-2.5 text-sm text-[#4b554e]"><span className="font-semibold text-[#315840]">Ghi chú:</span> {order.note}</div>}
                       {order.stage !== "completed" ? (
                         <div className="flex gap-2">
-                          {order.stage === "preparing" && order.rawStatus === "PAID" && (
+                          {order.rawStatus === "PAID" && (
                             <button
                               type="button"
                               onClick={() => moveOrder(order.id, "PREPARING")}
-                              className="flex-1 rounded-xl bg-[#e6ede8] px-3 py-3.5 text-xs font-bold text-[#145332] shadow-sm transition hover:bg-[#d8e3dc] cursor-pointer"
+                              className="flex-1 rounded-xl bg-[#145332] px-4 py-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f4328] cursor-pointer"
                             >
                               ▶ Bắt đầu pha
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => moveOrder(order.id, order.stage === "preparing" ? "READY" : "COMPLETED")}
-                            className="flex-1 rounded-xl bg-[#145332] px-4 py-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f4328] cursor-pointer"
-                          >
-                            {order.stage === "preparing" ? "✓ Đã làm xong" : "✓ Đã giao thành công"}
-                          </button>
+                          {order.rawStatus === "PREPARING" && (
+                            <button
+                              type="button"
+                              onClick={() => moveOrder(order.id, "READY")}
+                              className="flex-1 rounded-xl bg-[#145332] px-4 py-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f4328] cursor-pointer"
+                            >
+                              ✓ Đã làm xong
+                            </button>
+                          )}
+                          {order.stage === "ready" && (
+                            <button
+                              type="button"
+                              onClick={() => moveOrder(order.id, "COMPLETED")}
+                              className="flex-1 rounded-xl bg-[#145332] px-4 py-3.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f4328] cursor-pointer"
+                            >
+                              ✓ Đã giao thành công
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="border-t border-[#eeede7] pt-3 text-sm text-[#56705d]">✓ Đã giao thành công · {order.elapsed}</div>
