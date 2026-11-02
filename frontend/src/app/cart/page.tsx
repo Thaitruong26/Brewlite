@@ -21,6 +21,7 @@ import {
   useCartHydrated,
   useCartStore,
 } from "@/store/cart";
+import { useRouter } from "next/navigation";
 
 /** Response của POST /promotions/validate (api.md mục 6.7). */
 type PromoResult = {
@@ -39,7 +40,6 @@ function describePromoError(err: unknown): string {
       ? err.message
       : "Không kiểm tra được mã giảm giá.";
   }
-  // Nếu message từ backend đã chi tiết thì ưu tiên hiển thị trực tiếp
   if (err.message && err.message !== "Dữ liệu không hợp lệ" && err.message !== "Validation failed") {
     return err.message;
   }
@@ -82,6 +82,7 @@ function describePromoError(err: unknown): string {
 }
 
 export default function CartPage() {
+  const router = useRouter();
   const hydrated = useCartHydrated();
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore(selectSubtotal);
@@ -92,7 +93,7 @@ export default function CartPage() {
 
   const signedIn = hydrated && Boolean(getToken());
 
-  // Lấy điểm thưởng từ GET /auth/me; nếu backend chỉ trả JWT payload thì đọc từ user đã lưu lúc đăng nhập.
+  // Lấy dữ liệu user
   const { data: me } = useQuery({
     queryKey: ["me"],
     enabled: signedIn,
@@ -106,10 +107,15 @@ export default function CartPage() {
       }
     },
   });
-  const loyaltyPoints =
-    typeof me?.loyaltyPoints === "number" ? me.loyaltyPoints : null;
+  
+  // XỬ LÝ ĐIỂM THƯỞNG MỚI THEO YÊU CẦU:
+  const loyaltyPoints = typeof me?.loyaltyPoints === "number" ? me.loyaltyPoints : 0;
+  const [usePoints, setUsePoints] = useState(false);
 
-  // Khuyến mãi: gắn với chữ ký giỏ hàng để khi đổi món/số lượng thì kết quả kiểm tra cũ tự hết hiệu lực.
+  // Tính tiền giảm từ điểm: 100 điểm = 1000 VNĐ -> 1 điểm = 10 VNĐ
+  const pointsDiscountValue = usePoints ? loyaltyPoints * 10 : 0;
+
+  // Khuyến mãi gốc
   const cartSignature = items.map((i) => `${i.key || i.id}:${i.quantity ?? i.qty}`).join("|");
   const [promoCodeInput, setPromoCodeInput] = useState("");
   const [applied, setApplied] = useState<{
@@ -122,9 +128,12 @@ export default function CartPage() {
 
   const promo = applied && applied.sig === cartSignature ? applied.data : null;
   const promoStale = Boolean(applied && applied.sig !== cartSignature);
-  const discount = promo ? promo.discountAmount : 0;
-  const total = promo ? promo.totalAfterDiscount : subtotal;
-  // Quy tắc điểm thưởng (api.md mục 4.4): 1 điểm cho mỗi 1.000đ của total, làm tròn xuống.
+  
+  const discountPromo = promo ? promo.discountAmount : 0;
+  
+  // TỔNG TIỀN MỚI: Tạm tính - Giảm giá Promo - Giảm giá Điểm thưởng (Không để âm)
+  const total = Math.max(0, subtotal - discountPromo - pointsDiscountValue);
+  
   const estimatedPoints = Math.floor(total / 1000);
 
   async function validatePromo(e: React.FormEvent) {
@@ -163,8 +172,6 @@ export default function CartPage() {
       setApplied({ sig: cartSignature, data: result, fromMock: false });
       setStorePromoCode(result.code, result.discountAmount);
     } catch (err) {
-      // Backend đang trong quá trình phát triển (chưa có POST /promotions/validate):
-      // Tự chuyển sang mockApi để trang giỏ vẫn thử được các mã BREW10, GIAM15K, HETHAN.
       if (err instanceof ApiError && err.isMissingRoute && !MOCK_ENABLED) {
         try {
           const fallback = await mockApi<PromoResult>(
@@ -185,9 +192,23 @@ export default function CartPage() {
     }
   }
 
-  const handleCheckoutClick = () => {
+  const handleCheckoutClick = (e: React.MouseEvent) => {
+    // CHẶN YÊU CẦU ĐĂNG NHẬP
+    if (!signedIn) {
+      e.preventDefault();
+      router.push("/login?redirect=/cart");
+      return;
+    }
+
     if (promo) {
       setStorePromoCode(promo.code, promo.discountAmount);
+    }
+    
+    // Lưu tạm trạng thái dùng điểm vào store hoặc localStorage để checkout xài
+    if (usePoints) {
+      localStorage.setItem('useRewardPoints', 'true');
+    } else {
+      localStorage.removeItem('useRewardPoints');
     }
   };
 
@@ -248,16 +269,34 @@ export default function CartPage() {
               Tóm tắt đơn hàng
             </h2>
 
-            {signedIn && loyaltyPoints !== null && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-950">
-                <p>
-                  Điểm tích lũy hiện có:{" "}
-                  <strong>{loyaltyPoints.toLocaleString("vi-VN")} điểm</strong>
-                </p>
-                <p className="mt-0.5 text-amber-900/80">
-                  Đơn này sẽ tích lũy thêm khoảng +
-                  {estimatedPoints.toLocaleString("vi-VN")} điểm sau khi hoàn tất.
-                </p>
+            {/* BLOCK ĐIỂM THƯỞNG (Chỉ hiện khi đã đăng nhập) */}
+            {signedIn && (
+              <div className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+                <div className="text-sm text-amber-950">
+                  <p>
+                    Bạn đang có <strong>{loyaltyPoints.toLocaleString("vi-VN")} điểm thưởng</strong>
+                  </p>
+                </div>
+                
+                {loyaltyPoints > 0 && (
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={usePoints}
+                      onChange={(e) => setUsePoints(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-600 cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-amber-900">
+                      Sử dụng điểm quy đổi giảm {formatVND(loyaltyPoints * 10)}
+                    </span>
+                  </label>
+                )}
+
+                <div className="pt-2 border-t border-amber-200/50">
+                  <p className="text-xs text-amber-900/80">
+                    Đơn này sẽ tích lũy thêm khoảng +{estimatedPoints.toLocaleString("vi-VN")} điểm sau khi hoàn tất.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -282,41 +321,24 @@ export default function CartPage() {
                   disabled={promoLoading}
                   className="rounded-xl bg-amber-800 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-900 disabled:opacity-50"
                 >
-                  {promoLoading ? "Đang kiểm tra..." : "Áp dụng"}
+                  {promoLoading ? "..." : "Áp dụng"}
                 </button>
               </div>
-              <p className="mt-1.5 text-xs text-stone-500">
-                Mã mẫu trong seed: <code className="font-mono">BREW10</code>,{" "}
-                <code className="font-mono">GIAM15K</code>.
-              </p>
             </form>
 
             {promoStale && (
-              <p
-                role="status"
-                className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900"
-              >
-                Giỏ hàng vừa thay đổi — bấm Áp dụng để kiểm tra lại mã giảm giá.
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Giỏ hàng vừa thay đổi — bấm Áp dụng để kiểm tra lại.
               </p>
             )}
             {promoError && (
-              <p
-                role="alert"
-                className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
-              >
+              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                 {promoError}
               </p>
             )}
             {promo && (
-              <div
-                role="status"
-                className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-              >
-                Đã áp mã <strong>{promo.code}</strong> (
-                {promo.type === "PERCENT"
-                  ? `giảm ${promo.value}%`
-                  : `giảm ${formatVND(promo.value)}`}
-                ) — tiết kiệm {formatVND(promo.discountAmount)}.
+              <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                Đã áp mã <strong>{promo.code}</strong> — tiết kiệm {formatVND(promo.discountAmount)}.
               </div>
             )}
 
@@ -325,38 +347,42 @@ export default function CartPage() {
                 <dt className="text-stone-600">Tạm tính</dt>
                 <dd>{formatVND(subtotal)}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-stone-600">
-                  Giảm giá{promo ? ` (${promo.code})` : ""}
-                </dt>
-                <dd
-                  className={
-                    discount ? "font-semibold text-emerald-700" : ""
-                  }
-                >
-                  −{formatVND(discount)}
-                </dd>
-              </div>
+
+              {discountPromo > 0 && (
+                <div className="flex justify-between text-emerald-700 font-semibold">
+                  <dt>Giảm giá ({promo?.code})</dt>
+                  <dd>−{formatVND(discountPromo)}</dd>
+                </div>
+              )}
+
+              {usePoints && pointsDiscountValue > 0 && (
+                <div className="flex justify-between text-amber-600 font-semibold">
+                  <dt>Dùng {loyaltyPoints} điểm</dt>
+                  <dd>−{formatVND(pointsDiscountValue)}</dd>
+                </div>
+              )}
+
               <div className="flex justify-between border-t border-stone-200 pt-4 text-base font-bold">
                 <dt>Tổng cộng dự kiến</dt>
                 <dd className="text-amber-900">{formatVND(total)}</dd>
               </div>
             </dl>
 
-            <p className="mt-3 text-xs leading-5 text-stone-500">
-              Tổng tiền cuối cùng do máy chủ tính lại khi đặt đơn.
-            </p>
-
+            {/* NÚT THANH TOÁN (Thay đổi theo trạng thái Login) */}
             <Link
               href={
-                promo
-                  ? `/checkout?promo=${encodeURIComponent(promo.code)}`
-                  : "/checkout"
+                !signedIn
+                  ? "/login?redirect=/cart"
+                  : promo
+                    ? `/checkout?promo=${encodeURIComponent(promo.code)}`
+                    : "/checkout"
               }
               onClick={handleCheckoutClick}
-              className="mt-5 block rounded-xl bg-amber-800 px-4 py-3 text-center font-semibold text-white hover:bg-amber-900 transition-colors"
+              className={`mt-5 block rounded-xl px-4 py-3 text-center font-semibold text-white transition-colors ${
+                signedIn ? "bg-amber-800 hover:bg-amber-900" : "bg-stone-800 hover:bg-black"
+              }`}
             >
-              Tiến hành thanh toán
+              {signedIn ? "Tiến hành thanh toán" : "Đăng nhập để thanh toán"}
             </Link>
 
             <Link
@@ -387,7 +413,6 @@ function CartRow({
 
   return (
     <article className="flex gap-4 rounded-2xl border border-stone-200 bg-white p-4">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={item.imageUrl || "/img/ca-phe-sua.jpg"}
         alt={item.name || item.productName}
@@ -423,21 +448,16 @@ function CartRow({
           <div className="flex items-center gap-3">
             <button
               type="button"
-              aria-label={`Giảm số lượng ${item.name}`}
               onClick={() => setQuantity(itemKey, currentQty - 1)}
               className="h-8 w-8 rounded-lg border border-stone-300 hover:bg-stone-50 cursor-pointer"
             >
               −
             </button>
-            <span
-              className="min-w-5 text-center text-sm font-semibold"
-              aria-live="polite"
-            >
+            <span className="min-w-5 text-center text-sm font-semibold">
               {currentQty}
             </span>
             <button
               type="button"
-              aria-label={`Tăng số lượng ${item.name}`}
               onClick={() => setQuantity(itemKey, currentQty + 1)}
               disabled={currentQty >= MAX_QTY_PER_ITEM}
               className="h-8 w-8 rounded-lg border border-stone-300 hover:bg-stone-50 disabled:opacity-40 cursor-pointer"
