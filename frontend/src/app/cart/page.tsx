@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ApiError,
@@ -108,13 +108,6 @@ export default function CartPage() {
     },
   });
   
-  // XỬ LÝ ĐIỂM THƯỞNG MỚI THEO YÊU CẦU:
-  const loyaltyPoints = typeof me?.loyaltyPoints === "number" ? me.loyaltyPoints : 0;
-  const [usePoints, setUsePoints] = useState(false);
-
-  // Tính tiền giảm từ điểm: 100 điểm = 1000 VNĐ -> 1 điểm = 10 VNĐ
-  const pointsDiscountValue = usePoints ? loyaltyPoints * 10 : 0;
-
   // Khuyến mãi gốc
   const cartSignature = items.map((i) => `${i.key || i.id}:${i.quantity ?? i.qty}`).join("|");
   const [promoCodeInput, setPromoCodeInput] = useState("");
@@ -130,6 +123,20 @@ export default function CartPage() {
   const promoStale = Boolean(applied && applied.sig !== cartSignature);
   
   const discountPromo = promo ? promo.discountAmount : 0;
+
+  // XỬ LÝ ĐIỂM THƯỞNG MỚI THEO YÊU CẦU:
+  const loyaltyPoints = typeof me?.loyaltyPoints === "number" ? me.loyaltyPoints : 0;
+  const [usePoints, setUsePoints] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUsePoints(localStorage.getItem('useRewardPoints') === 'true');
+    }
+  }, []);
+
+  // Tính tiền giảm từ điểm: 100 điểm = 1000 VNĐ -> 1 điểm = 10 VNĐ
+  const pointsDiscountValue = usePoints ? Math.min(loyaltyPoints * 10, Math.max(0, subtotal - discountPromo)) : 0;
+
   
   // TỔNG TIỀN MỚI: Tạm tính - Giảm giá Promo - Giảm giá Điểm thưởng (Không để âm)
   const total = Math.max(0, subtotal - discountPromo - pointsDiscountValue);
@@ -283,7 +290,15 @@ export default function CartPage() {
                     <input
                       type="checkbox"
                       checked={usePoints}
-                      onChange={(e) => setUsePoints(e.target.checked)}
+                      onChange={(e) => {
+    const val = e.target.checked;
+    setUsePoints(val);
+    if (val) {
+      localStorage.setItem('useRewardPoints', 'true');
+    } else {
+      localStorage.removeItem('useRewardPoints');
+    }
+  }}
                       className="mt-1 h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-600 cursor-pointer"
                     />
                     <span className="text-sm font-medium text-amber-900">

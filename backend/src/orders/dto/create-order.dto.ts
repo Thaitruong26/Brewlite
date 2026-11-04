@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -66,4 +67,9 @@ export class CreateOrderDto {
   @IsString({ message: 'promoCode phải là chuỗi' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   promoCode?: string;
+
+  @ApiPropertyOptional({ description: 'Sử dụng điểm tích lũy để giảm giá (100 điểm = 1.000đ)', example: true })
+  @IsOptional()
+  @IsBoolean({ message: 'usePoints phải là boolean' })
+  usePoints?: boolean;
 }
