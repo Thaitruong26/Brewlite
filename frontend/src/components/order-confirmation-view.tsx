@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { CancelOrder } from "@/components/cancel-order";
 import { ApiError, formatVND, getOrderByIdApi } from "@/lib/api";
 import { getSavedMockOrders, MOCK_ORDER_1042 } from "@/lib/mock-checkout";
 import { OrderResponse, OrderStatus } from "@/types/order";
@@ -263,7 +264,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             Xác nhận đơn hàng
           </p>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">
-            Đặt hàng thành công
+            {order.status === "CANCELLED" ? "Đơn hàng đã hủy" : "Đặt hàng thành công"}
           </h1>
 
           {/* Mã đơn & Trạng thái PAID */}
@@ -292,7 +293,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
           </div>
 
           {/* Dòng chữ bắt buộc: "Mời tới quầy lấy nước" */}
-          <div className="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 max-w-md mx-auto">
+          {order.status !== "CANCELLED" && <div className="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 max-w-md mx-auto">
             <p className="text-lg font-extrabold text-amber-950 flex items-center justify-center gap-2">
               <span>☕</span>
               <span>Mời tới quầy lấy nước</span>
@@ -303,6 +304,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             </p>
           </div>
 
+          }
           {/* Tiến trình trạng thái đơn hàng (State Machine) */}
           {currentStepIdx !== -1 && (
             <div className="mt-7 pt-6 border-t border-stone-100">
@@ -363,8 +365,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-900">
               <span>🎁</span>
               <span>
-                Bạn đã được cộng <strong>+{order.pointsEarned} điểm thưởng</strong>{" "}
-                tích lũy cho đơn này!
+                {order.status === "CANCELLED" ? <>Đã thu hồi <strong>{order.pointsEarned} điểm thưởng</strong> của đơn đã hủy.</> : <>Bạn đã được cộng <strong>+{order.pointsEarned} điểm thưởng</strong> tích lũy cho đơn này!</>}
               </span>
             </div>
           )}
@@ -451,7 +452,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             )}
 
             <div className="flex justify-between items-baseline pt-2 border-t border-stone-100">
-              <span className="font-bold text-stone-900">Tổng đã thanh toán</span>
+              <span className="font-bold text-stone-900">{order.status === "CANCELLED" ? "Giá trị đơn đã hủy" : "Tổng đã thanh toán"}</span>
               <span className="text-xl font-extrabold text-amber-900">
                 {formatVND(order.total)}
               </span>
@@ -481,14 +482,15 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded font-semibold ${
-                          p.status === "SUCCESS"
+                          p.status === "SUCCESS" && !p.refundedAt
                             ? "bg-emerald-100 text-emerald-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {p.status}
+                        {p.refundedAt ? "Đã hoàn tiền" : p.status === "SUCCESS" ? "Đã thanh toán" : p.status === "PROCESSING" ? "Đang xử lý" : "Thanh toán thất bại"}
                       </span>
                     </div>
+                    {p.refundedAt && <p className="text-stone-600">Đã hoàn tiền {formatVND(p.refundedAmount ?? p.amount)} · {new Date(p.refundedAt).toLocaleString("vi-VN")}</p>}
                     {p.providerRef && (
                       <p className="text-stone-500 font-mono">
                         Mã giao dịch: {p.providerRef}
@@ -524,6 +526,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
           >
             Lịch sử đơn hàng
           </Link>
+          <CancelOrder compact key={order.id} order={order} disabled={isUsingMockData} onRefresh={fetchOrder} onCancelled={() => setOrder((current) => current ? { ...current, status: "CANCELLED" } : current)} />
         </div>
       </main>
     </div>

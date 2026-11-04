@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CancelOrder } from "@/components/cancel-order";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, api, formatVND, getToken, type Paginated } from "@/lib/api";
@@ -21,6 +22,9 @@ type OrderItemDetail = {
 };
 
 type PaymentDetail = {
+  refundedAt?: string | null;
+  refundedAmount?: number | null;
+  refundRef?: string | null;
   id?: number;
   method: string;
   status: string;
@@ -255,6 +259,7 @@ export default function OrdersPage() {
                   </div>
                 </div>
 
+                <div className="border-t border-stone-100 p-5"><CancelOrder order={order} disabled={data?.fromMock} onRefresh={refetch} /></div>
                 {/* Khu vực chi tiết mở rộng khi bấm vào */}
                 {isExpanded && (
                   <div className="border-t border-stone-200 bg-stone-50/30 p-5 space-y-4">
@@ -326,8 +331,8 @@ export default function OrdersPage() {
                         </p>
                         <p className="text-stone-500">
                           Trạng thái giao dịch:{" "}
-                          <strong className={primaryPayment?.status === "SUCCESS" || order.status === "PAID" ? "text-emerald-700" : "text-stone-700"}>
-                            {primaryPayment?.status === "SUCCESS" || order.status === "PAID" ? "✓ Đã thanh toán thành công" : order.status}
+                          <strong className={!primaryPayment?.refundedAt && (primaryPayment?.status === "SUCCESS" || order.status === "PAID") ? "text-emerald-700" : "text-stone-700"}>
+                            {primaryPayment?.refundedAt ? "Đã hoàn tiền" : primaryPayment?.status === "SUCCESS" || order.status === "PAID" ? "Đã thanh toán" : order.status}
                           </strong>
                         </p>
                       </div>
@@ -343,7 +348,7 @@ export default function OrdersPage() {
                           <p className="text-stone-500 italic">Không áp dụng mã giảm giá</p>
                         )}
                         {typeof order.pointsEarned === "number" && order.pointsEarned > 0 && (
-                          <p className="text-amber-800 font-medium">🎁 Tích lũy: +{order.pointsEarned} điểm thưởng</p>
+                          <p className="text-amber-800 font-medium">{order.status === "CANCELLED" ? `Đã thu hồi ${order.pointsEarned} điểm thưởng` : `🎁 Tích lũy: +${order.pointsEarned} điểm thưởng`}</p>
                         )}
                       </div>
                     </div>

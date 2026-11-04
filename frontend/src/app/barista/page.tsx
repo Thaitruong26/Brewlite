@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import { useStockStore } from "@/store/stock-store";
 import { useAuthStore } from "@/store/auth-store";
 import {
-  getBaristaOrders,
+  getAllBaristaOrders,
   updateOrderStatus,
   getProductsStock,
   getIngredientsStock,
@@ -13,8 +13,8 @@ import {
   BaristaOrder as BackendOrder,
 } from "@/lib/api/barista";
 
-type OrderStage = "preparing" | "ready" | "completed";
-type QueueTab = "preparing" | "ready" | "history";
+type OrderStage = "preparing" | "ready" | "completed" | "cancelled";
+type QueueTab = "preparing" | "ready" | "history" | "cancelled";
 type ProductLine = { quantity: number; name: string; size: string; options: string[] };
 type IngredientItem = { id?: number; sku: string; name: string; detail: string; unit: string; stock: number; minimum: number };
 type BaristaOrder = {
@@ -190,6 +190,7 @@ function mapBackendOrderToBarista(bo: BackendOrder): BaristaOrder {
     PREPARING: "preparing",
     READY: "ready",
     COMPLETED: "completed",
+    CANCELLED: "cancelled",
   };
   const stage: OrderStage = stageMap[bo.status] || "preparing";
 
@@ -248,15 +249,20 @@ export default function BaristaPage() {
     };
   }, [hydrateAuth, hydrateAvailability]);
 
+  const previousOrders = useRef<Map<number, string>>(new Map());
+
   // Tải danh sách đơn hàng thực tế từ backend
   useEffect(() => {
     let ignore = false;
     let timer: any = null;
     async function loadBackendOrders() {
       try {
-        const res = await getBaristaOrders();
+        const res = await getAllBaristaOrders();
         const list = Array.isArray(res) ? res : res?.data;
         if (!ignore && Array.isArray(list)) {
+          const newlyCancelled = list.filter((order) => order.status === "CANCELLED" && previousOrders.current.has(order.id) && previousOrders.current.get(order.id) !== "CANCELLED");
+          previousOrders.current = new Map(list.map((order) => [order.id, order.status]));
+          if (newlyCancelled.length) setNotice(`Đơn ${newlyCancelled.map((order) => `#${order.id}`).join(", ")} đã bị hủy. Không tiếp tục pha chế các đơn này.`);
           const mapped = list.map(mapBackendOrderToBarista);
           setOrders(mapped);
           setUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
@@ -334,6 +340,7 @@ export default function BaristaPage() {
   const counts = useMemo(() => ({
     preparing: orders.filter((order) => order.stage === "preparing").length,
     ready: orders.filter((order) => order.stage === "ready").length,
+    cancelled: orders.filter((order) => order.stage === "cancelled").length,
     history: orders.filter((order) => order.stage === "completed").length,
   }), [orders]);
 
@@ -359,7 +366,7 @@ export default function BaristaPage() {
   async function refresh() {
     setUpdatedAt(new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }));
     try {
-      const res = await getBaristaOrders();
+      const res = await getAllBaristaOrders();
       const list = Array.isArray(res) ? res : res?.data;
       if (Array.isArray(list)) {
         setOrders(list.map(mapBackendOrderToBarista));
@@ -486,8 +493,8 @@ export default function BaristaPage() {
           <>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e6e5dd] bg-white px-3 py-2 shadow-sm">
               <div className="flex flex-wrap gap-1" role="tablist" aria-label="Trạng thái đơn hàng">
-                {(["preparing", "ready", "history"] as QueueTab[]).map((tab) => {
-                  const label = tab === "preparing" ? "Đang làm" : tab === "ready" ? "Làm xong" : "Lịch sử";
+                {(["preparing", "ready", "history", "cancelled"] as QueueTab[]).map((tab) => {
+                  const label = tab === "preparing" ? "Đang làm" : tab === "ready" ? "Làm xong" : tab === "cancelled" ? "Đã hủy" : "Lịch sử";
                   return (
                     <button key={tab} type="button" role="tab" aria-selected={queueTab === tab} onClick={() => setQueueTab(tab)} className={`relative rounded-xl px-4 py-3 text-sm font-semibold transition-colors cursor-pointer ${queueTab === tab ? "bg-[#f4f5ef] text-[#174c32]" : "text-[#606b63] hover:bg-[#f8f8f4]"}`}>
                       {label}
@@ -500,6 +507,7 @@ export default function BaristaPage() {
               <span className="px-3 text-xs text-[#687269]">Chỉ hiển thị đơn mang đi</span>
             </div>
 
+            {queueTab === "cancelled" && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">Các đơn đã hủy · Không tiếp tục pha chế. Tự động cập nhật mỗi 5 giây.</div>}
             {queueTab === "history" && <div className="mb-4 rounded-xl bg-[#eeefe9] px-4 py-3 text-sm text-[#465b4c]">Đơn đã giao thành công trong ca làm việc.</div>}
             {visibleOrders.length ? (
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -514,8 +522,8 @@ export default function BaristaPage() {
                         <p className="mt-1.5 text-sm font-medium">{order.customer}</p>
                       </div>
                       <div className="text-right">
-                        <span className={`rounded-md px-2 py-1 text-xs font-bold ${order.stage === "preparing" && order.rawStatus === "PAID" ? "bg-[#e2e8f0] text-[#334155]" : order.stage === "preparing" ? "bg-[#e0f2fe] text-[#0369a1]" : order.stage === "ready" ? "bg-[#f3e8ff] text-[#6b21a8]" : "bg-[#d7f5df] text-[#16623a]"}`}>
-                          {order.rawStatus === "PAID" ? "Chờ làm" : order.rawStatus === "PREPARING" ? "Đang pha" : order.stage === "ready" ? "Chờ lấy" : "Đã giao"}
+                        <span className={`rounded-md px-2 py-1 text-xs font-bold ${order.stage === "cancelled" ? "bg-red-100 text-red-800" : order.stage === "preparing" && order.rawStatus === "PAID" ? "bg-[#e2e8f0] text-[#334155]" : order.stage === "preparing" ? "bg-[#e0f2fe] text-[#0369a1]" : order.stage === "ready" ? "bg-[#f3e8ff] text-[#6b21a8]" : "bg-[#d7f5df] text-[#16623a]"}`}>
+                          {order.stage === "cancelled" ? "Đã hủy" : order.rawStatus === "PAID" ? "Chờ làm" : order.rawStatus === "PREPARING" ? "Đang pha" : order.stage === "ready" ? "Chờ lấy" : "Đã giao"}
                         </span>
                         <p className="mt-2 text-xs text-[#737970]">Đặt lúc {order.placedAt}</p>
                       </div>
@@ -538,7 +546,9 @@ export default function BaristaPage() {
                         </div>
                       ))}
                       {order.note && <div className="rounded-xl bg-[#edede8] px-3 py-2.5 text-sm text-[#4b554e]"><span className="font-semibold text-[#315840]">Ghi chú:</span> {order.note}</div>}
-                      {order.stage !== "completed" ? (
+                      {order.stage === "cancelled" ? (
+                        <div className="border-t border-red-100 pt-3 text-sm font-semibold text-red-700">Đơn đã hủy · Không cần pha chế</div>
+                      ) : order.stage !== "completed" ? (
                         <div className="flex gap-2">
                           {order.rawStatus === "PAID" && (
                             <button
@@ -577,7 +587,7 @@ export default function BaristaPage() {
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-[#d9ddd5] bg-white px-6 py-16 text-center text-sm text-[#737970] space-y-2">
-                <p>Chưa có đơn trong mục <b>{queueTab === "preparing" ? "Đang làm" : queueTab === "ready" ? "Làm xong" : "Lịch sử"}</b>.</p>
+                <p>Chưa có đơn trong mục <b>{queueTab === "preparing" ? "Đang làm" : queueTab === "ready" ? "Làm xong" : queueTab === "cancelled" ? "Đã hủy" : "Lịch sử"}</b>.</p>
               </div>
             )}
           </>

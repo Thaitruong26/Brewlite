@@ -254,7 +254,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         include: {
           items: true,
           payments: {
-            select: { id: true, method: true, status: true, amount: true, createdAt: true },
+            select: { id: true, method: true, status: true, amount: true, createdAt: true, refundedAt: true, refundedAmount: true, refundRef: true },
           },
         },
       }),
@@ -319,6 +319,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             method: true,
             status: true,
             providerRef: true,
+            refundedAt: true,
+            refundedAmount: true,
+            refundRef: true,
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
@@ -366,6 +369,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         method: p.method,
         status: p.status,
         providerRef: p.providerRef,
+        refundedAt: p.refundedAt?.toISOString() ?? null,
+        refundedAmount: p.refundedAmount,
+        refundRef: p.refundRef,
         createdAt: p.createdAt.toISOString(),
       })),
       createdAt: order.createdAt.toISOString(),
@@ -615,7 +621,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    let statuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED];
+    let statuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED, OrderStatus.CANCELLED];
     if (query.status?.trim()) {
       statuses = query.status.split(',').map((s) => s.trim()) as OrderStatus[];
     }

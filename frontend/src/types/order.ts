@@ -60,6 +60,9 @@ export interface OrderItemResponse {
 }
 
 export interface OrderPaymentSnapshot {
+  refundedAt?: string | null;
+  refundedAmount?: number | null;
+  refundRef?: string | null;
   id?: number;
   method: PaymentMethod;
   status: PaymentStatus;
