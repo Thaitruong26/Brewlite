@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { readAuth } from "@/lib/api/auth-storage";
 
 export type Size = "S" | "M" | "L";
 export type CartTopping = { id: number; name: string; price: number };
@@ -26,35 +27,48 @@ export type CartItem = {
   note?: string;
 };
 
-/** Giới hạn theo api.md (POST /orders): mỗi dòng 1–20 phần, tối đa 30 dòng, tối đa 3 topping. */
-export const MAX_QTY_PER_ITEM = 20;
-export const MAX_CART_LINES = 30;
-export const MAX_TOPPINGS = 3;
-
-export type NewCartItem = Partial<CartItem> & {
+export type NewCartItem = {
+  key?: string;
+  id?: string;
   productId: number;
-  size: Size;
   name?: string;
   productName?: string;
+  imageUrl?: string;
+  size: Size;
+  sizeSurcharge?: number;
+  toppings?: CartTopping[];
+  toppingIds?: number[];
+  basePrice: number;
+  quantity?: number;
+  qty?: number;
+  note?: string;
 };
 
-export const clampQty = (qty: number) =>
-  Math.max(1, Math.min(MAX_QTY_PER_ITEM, Math.floor(qty)));
+export const MAX_QTY_PER_ITEM = 20;
+export const MAX_TOPPINGS = 3;
+export const MAX_CART_LINES = 30;
 
 export const cartItemKey = (
   productId: number,
   size: Size,
-  toppingIds: number[],
+  toppingIds: number[] = [],
 ) =>
-  `${productId}-${size}-${[...toppingIds].sort((a, b) => a - b).join(",")}`;
+  `${productId}-${size}-${toppingIds
+    .slice()
+    .sort((a, b) => a - b)
+    .join(",")}`;
 
-/** Giá 1 phần theo api.md mục 4.1: giá gốc + phụ thu size + tổng giá topping. */
-export const itemUnitPrice = (
-  item: Pick<CartItem, "basePrice" | "sizeSurcharge" | "toppings">,
-) =>
-  (item.basePrice || 0) +
+export const clampQty = (qty: number) =>
+  Math.max(1, Math.min(MAX_QTY_PER_ITEM, Math.floor(qty) || 1));
+
+export const itemUnitPrice = (item: {
+  basePrice: number;
+  sizeSurcharge?: number;
+  toppings?: { price: number }[];
+}) =>
+  item.basePrice +
   (item.sizeSurcharge || 0) +
-  (item.toppings || []).reduce((sum, topping) => sum + topping.price, 0);
+  (item.toppings || []).reduce((sum, t) => sum + t.price, 0);
 
 export const calculateItemUnitPrice = itemUnitPrice;
 
@@ -65,7 +79,7 @@ export type CartState = {
   items: CartItem[];
   promoCode: string | null;
   discountAmount: number;
-  /** Thêm món; trả về false nếu giỏ đã đủ số dòng tối đa. */
+  /** Thêm món; trả về false nếu chưa đăng nhập hoặc giỏ đã đủ số dòng tối đa. */
   addItem: (item: NewCartItem, quantity?: number) => boolean;
   setQuantity: (key: string, quantity: number) => void;
   updateQty: (key: string, quantity: number) => void;
@@ -95,6 +109,14 @@ export const useCartStore = create<CartState>()(
       discountAmount: 0,
 
       addItem: (item, quantity = 1) => {
+        // Yêu cầu: Đăng nhập mới được thêm món vào giỏ hàng
+        if (typeof window !== "undefined") {
+          const auth = readAuth();
+          if (!auth.accessToken && !auth.user) {
+            return false;
+          }
+        }
+
         const toppingIds = (item.toppings || []).map((t) => t.id);
         const key =
           item.key ||

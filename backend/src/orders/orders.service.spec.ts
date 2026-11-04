@@ -50,6 +50,7 @@ describe('OrdersService', () => {
         update: vi.fn(),
       },
       user: {
+        findUnique: vi.fn(),
         update: vi.fn(),
       },
       loyaltyTransaction: {
@@ -86,6 +87,69 @@ describe('OrdersService', () => {
   });
 
   describe('createOrder (Kho theo nguyên liệu & optimistic locking)', () => {
+    it('áp dụng điểm thưởng khi usePoints = true và trừ loyaltyPoints của user', async () => {
+      prismaMock.product.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: 'Cà phê sữa',
+          isActive: true,
+          productRecipes: [{ ingredientId: 10, quantity: 50 }],
+        },
+      ]);
+      prismaMock.topping.findMany.mockResolvedValue([]);
+      prismaMock.ingredient.findUnique.mockImplementation(async ({ where }) => {
+        if (where.id === 10) return { id: 10, name: 'Cà phê', stock: 1000, version: 0 };
+        return null;
+      });
+      prismaMock.ingredient.updateMany.mockResolvedValue({ count: 1 });
+      prismaMock.stockMovement.create.mockResolvedValue({});
+
+      // User có 1000 điểm (= 10.000đ)
+      prismaMock.user.findUnique.mockResolvedValue({ loyaltyPoints: 1000 });
+      prismaMock.user.update.mockResolvedValue({});
+
+      prismaMock.order.create.mockResolvedValue({
+        id: 99,
+        userId: 1,
+        status: OrderStatus.PENDING,
+        subtotal: 90000,
+        discountAmount: 10000,
+        total: 80000,
+        promoCode: null,
+        pointsEarned: 0,
+        pointsUsed: 1000,
+        items: [
+          {
+            productId: 1,
+            productName: 'Cà phê sữa',
+            size: Size.M,
+            toppings: [],
+            unitPrice: 45000,
+            qty: 2,
+            lineTotal: 90000,
+          },
+        ],
+        createdAt: new Date(),
+      });
+
+      const res = await service.createOrder(1, {
+        items: [{ productId: 1, size: Size.M, quantity: 2 }],
+        usePoints: true,
+      });
+
+      expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 1 },
+        select: { loyaltyPoints: true },
+      });
+      expect(prismaMock.user.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { loyaltyPoints: { decrement: 1000 } },
+      });
+      expect(res.discountAmount).toBe(10000);
+      expect(res.total).toBe(80000);
+      expect(res.pointsUsed).toBe(1000);
+    });
+
     it('tạo đơn thành công khi còn tồn nguyên liệu, ghi StockMovement ORDER_RESERVE và lưu consumption', async () => {
       // Mock sản phẩm có công thức
       prismaMock.product.findMany.mockResolvedValue([

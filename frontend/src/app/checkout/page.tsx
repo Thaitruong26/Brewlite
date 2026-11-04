@@ -50,6 +50,7 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("WALLET");
   const mockResult: MockPaymentResult = "SUCCESS";
   const [useMockMode, setUseMockMode] = useState<boolean>(false);
+  const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
 
   // Đơn hàng đã tạo từ POST /orders (giữ lại khi lỗi 402 để thử thanh toán lại không tạo trùng đơn)
   const [currentOrder, setCurrentOrder] = useState<OrderResponse | null>(null);

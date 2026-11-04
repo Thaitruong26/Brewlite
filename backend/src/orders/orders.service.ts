@@ -142,7 +142,29 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          const total = subtotal - discountAmount;
+          // 4.1 Áp dụng điểm tích lũy (nếu có yêu cầu: 100 điểm = 1.000đ -> 1 điểm = 10đ)
+          let pointsUsed = 0;
+          if (dto.usePoints && userId) {
+            const currentUser = await tx.user.findUnique({
+              where: { id: userId },
+              select: { loyaltyPoints: true },
+            });
+            if (currentUser && currentUser.loyaltyPoints > 0) {
+              const remainingBeforePoints = Math.max(0, subtotal - discountAmount);
+              const maxPointsDiscount = currentUser.loyaltyPoints * 10;
+              const pointsDiscount = Math.min(remainingBeforePoints, maxPointsDiscount);
+              pointsUsed = Math.ceil(pointsDiscount / 10);
+              if (pointsUsed > 0) {
+                await tx.user.update({
+                  where: { id: userId },
+                  data: { loyaltyPoints: { decrement: pointsUsed } },
+                });
+                discountAmount += pointsDiscount;
+              }
+            }
+          }
+
+          const total = Math.max(0, subtotal - discountAmount);
 
           // 5. Lưu Order và OrderItem (chụp snapshot tên, topping, giá)
           const newOrder = await tx.order.create({
@@ -154,6 +176,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
               total,
               promoCode: dto.promoCode || null,
               pointsEarned: 0,
+              pointsUsed,
               items: {
                 create: pricing.lines.map((line, idx) => ({
                   productId: line.productId,
@@ -202,6 +225,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             discountAmount: newOrder.discountAmount,
             total: newOrder.total,
             promoCode: newOrder.promoCode,
+            pointsUsed: newOrder.pointsUsed,
             createdAt: newOrder.createdAt.toISOString(),
             expiresAt: new Date(newOrder.createdAt.getTime() + ORDER_PAYMENT_TIMEOUT_MS).toISOString(),
           };
@@ -271,6 +295,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         total: order.total,
         promoCode: order.promoCode,
         pointsEarned: order.pointsEarned,
+        pointsUsed: order.pointsUsed,
         itemCount,
         items: order.items.map((i) => ({
           id: i.id,
@@ -362,6 +387,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       total: order.total,
       promoCode: order.promoCode,
       pointsEarned: order.pointsEarned,
+        pointsUsed: order.pointsUsed,
       payments: order.payments.map((p) => ({
         id: p.id,
         orderId: p.orderId,

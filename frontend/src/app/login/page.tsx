@@ -32,7 +32,7 @@ export default function LoginPage() {
       const token = result.accessToken || (result as unknown as { access_token?: string }).access_token || "";
       setSession(token, result.user);
       const params = new URLSearchParams(window.location.search);
-      const requestedPath = params.get("next");
+      const requestedPath = params.get("next") || params.get("redirect");
       let destination = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/menu";
       if (result.user.role === "BARISTA" && (!requestedPath || requestedPath === "/menu")) {
         destination = "/barista";
@@ -68,33 +68,34 @@ export default function LoginPage() {
       {formError && <div role="alert" className="mt-5 rounded-xl border border-[#e8c5b5] bg-[#fff8f3] px-4 py-3 text-sm text-[#713d2a]">{formError}</div>}
       
       {/* Quick login demo accounts */}
-      <div className="mt-5 rounded-xl border border-[#dce3da] bg-[#f8faf7] p-3 text-xs text-[#526356]">
-        <p className="font-semibold text-[#254130] mb-1.5">Tài khoản demo mẫu:</p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={fillBarista}
-            className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 transition hover:bg-amber-100"
-          >
-            👨‍🍳 Barista: barista@brewlite.com
-          </button>
-          <button
-            type="button"
-            onClick={fillCustomer}
-            className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
-          >
-            👤 Khách: demo@brewlite.com
-          </button>
-        </div>
+      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+        <span className="text-stone-500 py-1">Tài khoản mẫu:</span>
+        <button type="button" onClick={fillCustomer} className="rounded-lg bg-stone-100 px-2.5 py-1 font-medium text-stone-800 hover:bg-stone-200 cursor-pointer">
+          👤 Khách hàng (demo)
+        </button>
+        <button type="button" onClick={fillBarista} className="rounded-lg bg-emerald-100 px-2.5 py-1 font-medium text-emerald-800 hover:bg-emerald-200 cursor-pointer">
+          ☕ Barista
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5">
-        <div><label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#344b3c]">Email</label><input id="email" name="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} aria-invalid={!!errors.email} aria-describedby={errors.email ? "email-error" : undefined} className="w-full rounded-xl border border-[#d9e0d7] bg-white px-4 py-3 outline-none transition focus:border-[#5a8066] focus:ring-2 focus:ring-[#d6e5d8]" placeholder="ban@email.com" />{errors.email && <p id="email-error" className="mt-1.5 text-sm text-[#a1452d]">{errors.email}</p>}</div>
-        <div><label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#344b3c]">Mật khẩu</label><input id="password" name="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} aria-invalid={!!errors.password} aria-describedby={errors.password ? "password-error" : undefined} className="w-full rounded-xl border border-[#d9e0d7] bg-white px-4 py-3 outline-none transition focus:border-[#5a8066] focus:ring-2 focus:ring-[#d6e5d8]" placeholder="Ít nhất 6 ký tự" />{errors.password && <p id="password-error" className="mt-1.5 text-sm text-[#a1452d]">{errors.password}</p>}</div>
-        <button type="submit" disabled={submitting} className="flex min-h-12 w-full items-center justify-center rounded-full bg-[#183d2c] px-5 font-semibold text-white transition hover:bg-[#24563e] disabled:cursor-wait disabled:opacity-70">{submitting ? "Đang đăng nhập..." : "Đăng nhập"}</button>
+      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-[#183d2c]">Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-2 w-full rounded-xl border border-[#d6ddd6] px-4 py-3 text-sm outline-none focus:border-emerald-700" placeholder="customer@brewlite.com" required />
+          {errors.email && <p className="mt-1 text-xs text-[#b94a2f]">{errors.email}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-[#183d2c]">Mật khẩu</label>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-2 w-full rounded-xl border border-[#d6ddd6] px-4 py-3 text-sm outline-none focus:border-emerald-700" placeholder="••••••••" required />
+          {errors.password && <p className="mt-1 text-xs text-[#b94a2f]">{errors.password}</p>}
+        </div>
+        <button type="submit" disabled={submitting} className="w-full rounded-xl bg-[#183d2c] py-3.5 text-sm font-semibold text-white transition hover:bg-[#122e21] disabled:opacity-60 cursor-pointer">
+          {submitting ? "Đang xử lý..." : "Đăng nhập"}
+        </button>
       </form>
-      {submitting && <LoadingState label="Đang xác thực tài khoản..." />}
-      <p className="mt-6 text-center text-sm text-[#66736a]">Chưa có tài khoản? <Link href="/register" className="font-semibold text-[#24563e] underline underline-offset-4">Tạo tài khoản</Link></p>
+      <div className="mt-8 border-t border-[#e2e8e2] pt-6 text-sm text-[#66736a]">
+        Chưa có tài khoản? <Link href="/register" className="font-semibold text-[#183d2c] hover:underline">Đăng ký ngay</Link>
+      </div>
     </div>
   </section>;
 }

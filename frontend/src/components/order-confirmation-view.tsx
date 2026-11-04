@@ -451,6 +451,22 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
               </div>
             )}
 
+            {order.pointsUsed && order.pointsUsed > 0 ? (
+              <div className="flex justify-between text-amber-700 font-medium">
+                <span>Điểm thưởng đã dùng:</span>
+                <span className="font-semibold">
+                  -{formatVND(order.pointsUsed * 10)} ({order.pointsUsed} điểm)
+                </span>
+              </div>
+            ) : null}
+
+            {order.pointsEarned && order.pointsEarned > 0 ? (
+              <div className="flex justify-between text-amber-900 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200/70 text-xs">
+                <span>🎁 Điểm tích lũy nhận được:</span>
+                <span className="font-bold">+{order.pointsEarned} điểm</span>
+              </div>
+            ) : null}
+
             <div className="flex justify-between items-baseline pt-2 border-t border-stone-100">
               <span className="font-bold text-stone-900">{order.status === "CANCELLED" ? "Giá trị đơn đã hủy" : "Tổng đã thanh toán"}</span>
               <span className="text-xl font-extrabold text-amber-900">
