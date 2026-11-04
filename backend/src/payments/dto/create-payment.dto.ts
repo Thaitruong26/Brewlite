@@ -1,15 +1,16 @@
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsInt,
   IsOptional,
   Min,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum PaymentMethodInput {
   WALLET = 'WALLET',
   CARD = 'CARD',
+  MOMO = 'MOMO',
 }
 
 export enum MockPaymentResult {
@@ -26,8 +27,8 @@ export class CreatePaymentDto {
 
   @ApiProperty({
     enum: PaymentMethodInput,
-    example: PaymentMethodInput.WALLET,
-    description: 'Phương thức thanh toán: WALLET hoặc CARD',
+    example: PaymentMethodInput.MOMO,
+    description: 'Phương thức thanh toán: WALLET, CARD hoặc MOMO',
   })
   @IsEnum(PaymentMethodInput)
   method!: PaymentMethodInput;

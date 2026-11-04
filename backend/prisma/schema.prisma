@@ -30,12 +30,14 @@ enum OrderStatus {
 enum PaymentMethod {
   WALLET
   CARD
+  MOMO
 }
 
 enum PaymentStatus {
   PROCESSING
   SUCCESS
   FAILED
+  EXPIRED
 }
 
 enum Size {
@@ -178,7 +180,7 @@ model Payment {
   amount Int
   method PaymentMethod
   status PaymentStatus @default(PROCESSING)
-
+  expiresAt DateTime?
   providerRef   String?
   failureReason String?
 
@@ -191,6 +193,7 @@ model Payment {
   refundRef      String?
 
   createdAt DateTime @default(now())
+  expirestAt DateTime?
   updatedAt DateTime @updatedAt
 
   order Order @relation(fields: [orderId], references: [id])

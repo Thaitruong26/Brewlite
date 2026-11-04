@@ -4,15 +4,11 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
-  HttpException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LoyaltyService } from '../loyalty/loyalty.service.js';
-import {
-  CreatePaymentDto,
-  MockPaymentResult,
-} from './dto/create-payment.dto.js';
+import { CreatePaymentDto } from './dto/create-payment.dto.js';
 
 @Injectable()
 export class PaymentsService {
@@ -21,6 +17,7 @@ export class PaymentsService {
     private readonly loyaltyService: LoyaltyService,
   ) {}
 
+  // Khách tạo phiên thanh toán
   async createPayment(
     dto: CreatePaymentDto,
     idempotencyKey: string,
@@ -33,7 +30,6 @@ export class PaymentsService {
     const normalized = {
       orderId: dto.orderId,
       method: dto.method,
-      mockResult: dto.mockResult ?? null,
     };
 
     const requestHash = createHash('sha256')
@@ -51,17 +47,6 @@ export class PaymentsService {
         );
       }
 
-     if (existing.status === 'FAILED') {
-  const snapshot = existing.responseSnapshot;
-
-  throw new HttpException(
-    snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
-      ? snapshot
-      : { message: 'Payment failed' },
-    402,
-  );
-}
-
       return existing.responseSnapshot ?? existing;
     }
 
@@ -74,7 +59,9 @@ export class PaymentsService {
     }
 
     if (user && order.userId !== user.id && user.role !== 'BARISTA') {
-      throw new ForbiddenException('Bạn không có quyền thanh toán đơn hàng này');
+      throw new ForbiddenException(
+        'Bạn không có quyền thanh toán đơn hàng này',
+      );
     }
 
     if (order.status !== 'PENDING') {
@@ -92,12 +79,20 @@ export class PaymentsService {
 
     if (activePayment) {
       if (activePayment.status === 'SUCCESS') {
-        throw new ConflictException('Đơn hàng này đã được thanh toán thành công');
+        throw new ConflictException(
+          'Đơn hàng này đã được thanh toán thành công',
+        );
       }
-      throw new ConflictException('Đơn hàng đang có một giao dịch thanh toán khác đang xử lý');
+
+      throw new ConflictException(
+        'Đơn hàng đang có một giao dịch thanh toán khác đang xử lý',
+      );
     }
 
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
     let payment;
+
     try {
       payment = await this.prisma.payment.create({
         data: {
@@ -107,53 +102,100 @@ export class PaymentsService {
           status: 'PROCESSING',
           idempotencyKey,
           requestHash,
+          expiresAt,
         },
       });
     } catch (err: any) {
       if (err?.code === 'P2002') {
-        throw new ConflictException('Đơn hàng đang có một giao dịch thanh toán khác');
+        throw new ConflictException(
+          'Đơn hàng đang có một giao dịch thanh toán khác',
+        );
       }
       throw err;
     }
-
-    const success = dto.mockResult !== MockPaymentResult.FAILED;
 
     const response = {
       paymentId: payment.id,
       orderId: order.id,
       amount: order.total,
       method: dto.method,
-      status: success ? 'SUCCESS' : 'FAILED',
+      status: 'PROCESSING',
+      expiresAt,
+      message: 'Waiting for Barista payment confirmation',
     };
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { responseSnapshot: response },
+    });
+
+    return response;
+  }
+
+  // Barista xác nhận đã nhận được tiền
+  async confirmPayment(paymentId: number, user: any) {
+    if (user?.role !== 'BARISTA') {
+      throw new ForbiddenException(
+        'Only Barista can confirm payment',
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { id: paymentId },
+        include: { order: true },
+      });
+
+      if (!payment) {
+        throw new NotFoundException('Payment not found');
+      }
+
+      if (payment.status !== 'PROCESSING') {
+        throw new ConflictException(
+          'Payment is not processing',
+        );
+      }
+
+      if (
+        !payment.expiresAt ||
+        payment.expiresAt.getTime() <= Date.now()
+      ) {
+        await tx.payment.update({
+          where: { id: paymentId },
+          data: { status: 'EXPIRED' },
+        });
+
+        return { status: 'EXPIRED' };
+      }
+
+      if (payment.order.status !== 'PENDING') {
+        throw new ConflictException(
+          'Order is not available for payment',
+        );
+      }
+
       const updatedPayment = await tx.payment.update({
-        where: { id: payment.id },
+        where: { id: paymentId },
         data: {
-          status: success ? 'SUCCESS' : 'FAILED',
-          responseSnapshot: response,
-          failureReason: success ? null : 'Mock payment failure',
+          status: 'SUCCESS',
+          responseSnapshot: {
+            paymentId: payment.id,
+            orderId: payment.orderId,
+            amount: payment.amount,
+            method: payment.method,
+            status: 'SUCCESS',
+          },
         },
       });
 
       await tx.order.update({
-        where: { id: order.id },
-        data: {
-          status: success ? 'PAID' : 'PAYMENT_FAILED',
-        },
+        where: { id: payment.orderId },
+        data: { status: 'PAID' },
       });
 
-      if (success) {
-        await this.loyaltyService.award(tx, order);
-      }
+      await this.loyaltyService.award(tx, payment.order);
 
-      return updatedPayment.responseSnapshot ?? response;
+      return updatedPayment.responseSnapshot ?? updatedPayment;
     });
-
-    if (!success) {
-      throw new HttpException(response, 402);
-    }
-
-    return result;
   }
 }
