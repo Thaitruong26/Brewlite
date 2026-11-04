@@ -140,12 +140,12 @@ function SiteHeaderContent() {
                       <div className="flex items-center justify-between text-sm">
                         <span className="font-medium text-[#4a6155]">Điểm thưởng:</span>
                         {/* CHÚ Ý: Đổi 'user.points' thành tên trường lưu điểm trong DB của bạn nếu khác */}
-                        <span className="font-bold text-[#183d2c]">{user.points || 0} điểm</span>
+                        <span className="font-bold text-[#183d2c]">{user.loyaltyPoints ?? 0} điểm</span>
                       </div>
                       <div className="mt-1 flex items-center justify-between text-xs">
                         <span className="text-[#66736a]">Quy đổi:</span>
                         <span className="font-semibold text-green-600">
-                          {formatCurrency((user.points || 0) * 10)}
+                          {formatCurrency((user.loyaltyPoints ?? 0) * 10)}
                         </span>
                       </div>
                     </div>
