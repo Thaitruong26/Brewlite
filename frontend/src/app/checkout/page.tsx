@@ -5,15 +5,19 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  api,
   ApiError,
   createOrderApi,
   createPaymentApi,
   formatVND,
+  getAccessToken,
+  saveSession,
 } from "@/lib/api";
 import {
   createMockOrderFromCart,
   processMockPayment,
 } from "@/lib/mock-checkout";
+import { useAuthStore } from "@/store/auth-store";
 import { calculateItemUnitPrice, useCartStore } from "@/store/cart-store";
 import {
   CreateOrderDto,
@@ -76,7 +80,10 @@ export default function CheckoutPage() {
     const timer = setTimeout(() => {
       setMounted(true);
       setIdempotencyKey(generateUUID());
-          }, 0);
+      if (typeof window !== "undefined") {
+        setUseRewardPoints(localStorage.getItem("useRewardPoints") === "true");
+      }
+    }, 0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -147,6 +154,7 @@ export default function CheckoutPage() {
             ...(item.note ? { note: item.note } : {}),
           })),
           ...(promoCode ? { promoCode: promoCode.trim().toUpperCase() } : {}),
+          ...(useRewardPoints ? { usePoints: true } : {}),
         };
 
         if (useMockMode) {
@@ -160,9 +168,33 @@ export default function CheckoutPage() {
           orderToPay = await createOrderApi(orderDto);
         }
         setCurrentOrder(orderToPay);
+
+        // Sau khi đã áp dụng điểm thưởng thành công, xóa cờ và đồng bộ lại số điểm mới của user
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("useRewardPoints");
+        }
+        try {
+          const freshUser = await api<any>("/auth/me");
+          if (freshUser && typeof freshUser.loyaltyPoints === "number") {
+            const token = getAccessToken();
+            if (token) {
+              saveSession(token, freshUser);
+              useAuthStore.getState().setSession(token, freshUser);
+            }
+          }
+        } catch {}
+        queryClient.invalidateQueries({ queryKey: ["me"] });
       }
 
-      // Bước 2: Gọi POST /payments kèm header Idempotency-Key
+      // Nếu chọn Ví điện tử / Quét mã QR MoMo:
+      // Chuyển hướng sang trang mã QR để khách quét mã và Barista đối soát
+      if (paymentMethod === "WALLET") {
+        clearCart();
+        router.push(`/payment?orderId=${orderToPay.id}`);
+        return;
+      }
+
+      // Bước 2: Gọi POST /payments kèm header Idempotency-Key (dành cho CARD hoặc thanh toán trực tiếp)
       setStepStatus("PROCESSING_PAYMENT");
       setLastUsedKey(activeKey);
 
@@ -518,12 +550,12 @@ export default function CheckoutPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-stone-900">
-                          Ví điện tử (WALLET)
+                          Chuyển khoản QR MoMo (Khuyên dùng)
                         </span>
                         <span className="text-xl">📱</span>
                       </div>
                       <p className="text-xs text-stone-600 mt-1">
-                        Thanh toán tức thì qua Ví MoMo, ZaloPay hoặc VNPay QR.
+                        Quét mã QR MoMo, chuyển khoản kèm mã đơn và chờ Barista xác nhận.
                       </p>
                     </div>
                   </label>
@@ -722,7 +754,9 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <span>Xác nhận trả</span>
+                      <span>
+                        {paymentMethod === "WALLET" ? "Quét mã QR chuyển khoản" : "Xác nhận trả"}
+                      </span>
                       <span>•</span>
                       <span>{formatVND(displayTotal)}</span>
                     </>

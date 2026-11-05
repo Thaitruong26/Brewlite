@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore, selectTotalItems } from "@/store/cart-store";
+import { api, getAccessToken, saveSession } from "@/lib/api";
 
 const NAV_LINKS = [
   { href: "/menu",   label: "Thực đơn" },
@@ -21,12 +22,28 @@ function SiteHeaderContent() {
   const hydrate  = useAuthStore((s) => s.hydrate);
   const totalItems = useCartStore(selectTotalItems);
   const pathname   = usePathname();
+  const signedIn   = Boolean(user);
 
   // State cho Dropdown Menu Khách hàng
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => {
+    hydrate();
+    if (signedIn) {
+      api<any>("/auth/me")
+        .then((fresh) => {
+          if (fresh && typeof fresh.loyaltyPoints === "number") {
+            const token = getAccessToken();
+            if (token) {
+              saveSession(token, fresh);
+              useAuthStore.getState().setSession(token, fresh);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [hydrate, signedIn, pathname]);
 
   // Xử lý click ra ngoài để đóng Dropdown
   useEffect(() => {

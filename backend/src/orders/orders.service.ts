@@ -7,7 +7,7 @@ import {
   OnModuleInit,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { OrderStatus, Role } from '../generated/prisma/client.js';
+import { OrderStatus, PaymentStatus, Role } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PricingService } from '../common/pricing/pricing.service.js';
 import { RecipeService } from '../common/recipe/recipe.service.js';
@@ -462,6 +462,16 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
+      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
+      if (order.pointsUsed > 0 && order.userId) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: {
+            loyaltyPoints: { increment: order.pointsUsed },
+          },
+        });
+      }
+
       // 3. Nếu đơn đã PAID: thu hồi điểm thưởng và ghi nhận hoàn tiền mock
       if (order.status === OrderStatus.PAID) {
         if (order.pointsEarned > 0) {
@@ -551,6 +561,16 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
+      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
+      if (order.pointsUsed > 0 && order.userId) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: {
+            loyaltyPoints: { increment: order.pointsUsed },
+          },
+        });
+      }
+
       // 3. Đổi trạng thái sang CANCELLED
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
@@ -622,6 +642,40 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      // Nếu đơn chuyển sang PAID (Barista bấm xác nhận tiền), cập nhật payment và tự động cộng điểm thưởng cho khách hàng
+      if (nextStatus === OrderStatus.PAID) {
+        await tx.payment.updateMany({
+          where: { orderId: order.id, status: PaymentStatus.PROCESSING },
+          data: { status: PaymentStatus.SUCCESS },
+        });
+
+        if (order.userId) {
+          const points = Math.floor(order.total / 1000);
+          if (points > 0) {
+            const existingTransaction = await tx.loyaltyTransaction.findUnique({
+              where: { orderId: order.id },
+            });
+            if (!existingTransaction) {
+              await tx.loyaltyTransaction.create({
+                data: {
+                  userId: order.userId,
+                  orderId: order.id,
+                  points: points,
+                },
+              });
+              await tx.user.update({
+                where: { id: order.userId },
+                data: { loyaltyPoints: { increment: points } },
+              });
+              await tx.order.update({
+                where: { id: order.id },
+                data: { pointsEarned: points },
+              });
+            }
+          }
+        }
+      }
+
       return {
         id: updated.id,
         code: `#${updated.id}`,
@@ -647,7 +701,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    let statuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED, OrderStatus.CANCELLED];
+    let statuses: OrderStatus[] = [
+      OrderStatus.PENDING,
+      OrderStatus.PAID,
+      OrderStatus.PREPARING,
+      OrderStatus.READY,
+      OrderStatus.COMPLETED,
+      OrderStatus.CANCELLED,
+    ];
     if (query.status?.trim()) {
       statuses = query.status.split(',').map((s) => s.trim()) as OrderStatus[];
     }
