@@ -52,7 +52,7 @@ export default function CheckoutPage() {
 
   const [mounted, setMounted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("WALLET");
-  const mockResult: MockPaymentResult = "SUCCESS";
+  const [mockResult, setMockResult] = useState<MockPaymentResult>("SUCCESS");
   const [useMockMode, setUseMockMode] = useState<boolean>(false);
   const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
 
@@ -586,6 +586,55 @@ export default function CheckoutPage() {
                       <p className="text-xs text-stone-600 mt-1">
                         Thẻ ATM nội địa (Napas) hoặc thẻ quốc tế Visa / Mastercard.
                       </p>
+
+                      {paymentMethod === "CARD" && (
+                        <div className="mt-3 pt-3 border-t border-amber-200/60">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[11px] font-semibold text-amber-950 uppercase tracking-wider">
+                              🧪 Chế độ giả lập thẻ (US-05 Demo):
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMockResult("SUCCESS");
+                                setIdempotencyKey(generateUUID());
+                                setErrorState(null);
+                              }}
+                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                mockResult === "SUCCESS"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
+                              }`}
+                            >
+                              ✓ Thành công (PAID ngay)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMockResult("FAILED");
+                                setIdempotencyKey(generateUUID());
+                                setErrorState(null);
+                              }}
+                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                mockResult === "FAILED"
+                                  ? "bg-red-600 text-white shadow-xs"
+                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
+                              }`}
+                            >
+                              ✗ Thất bại (Lỗi 402)
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-stone-500 mt-1.5">
+                            {mockResult === "SUCCESS"
+                              ? "Thẻ sẽ gọi POST /payments và tự động sang trạng thái PAID ngay lập tức."
+                              : "Thẻ sẽ mô phỏng từ chối thẻ (HTTP 402), chuyển sang PAYMENT_FAILED và giữ giỏ hàng."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </label>
                 </div>
@@ -690,6 +739,7 @@ export default function CheckoutPage() {
                             disabled={isSubmitting}
                             onClick={() => {
                               // Đổi mockResult về SUCCESS nếu người dùng muốn thử lại thành công ngay
+                              setMockResult("SUCCESS");
                               handleConfirmPayment({ forceNewKey: true });
                             }}
                             className="flex-1 px-3 py-2 rounded-lg bg-amber-800 text-white text-xs font-semibold hover:bg-amber-900 transition-colors cursor-pointer"
