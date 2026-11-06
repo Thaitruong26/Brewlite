@@ -101,9 +101,9 @@ Query: page (mặc định 1), limit (mặc định 10, tối đa 50). Response:
 | price        | Int     | Giá gốc (size S), VND, ≥ 0                 |
 | imageUrl     | String  |                                            |
 | category (+) | String  | Cà phê, Trà, Đá xay...                     |
-| stock        | Int     | ≥ 0, số phần còn bán                       |
-| version (+)  | Int     | default 0, **dùng cho optimistic locking** |
 | isActive (+) | Boolean | default true                               |
+
+> **Lưu ý nâng cấp kiến trúc kho (v1.3):** Hệ thống đã chuyển đổi toàn bộ cơ chế quản lý tồn kho từ đếm số ly trên `Product.stock` sang quản lý theo **Nguyên liệu (`Ingredient`)** và **Công thức định lượng (`ProductRecipe` / `ToppingRecipe`)**. Số lượng tồn và khả năng bán của mỗi món được tính toán động theo lượng nguyên liệu thực tế trong kho. Xem chi tiết tại mục 3.3 và mục 4.2.
 
 **Topping (+)**: id, name (unique), price (Int), isActive.
 
@@ -170,23 +170,44 @@ Lý do chụp lại tên, topping, giá: sau này menu đổi giá thì đơn c�
 
 **LoyaltyTransaction (+)** (không bắt buộc, nên có để chứng minh cộng điểm): id, userId, orderId (unique, đảm bảo mỗi đơn chỉ cộng điểm một lần), points, createdAt.
 
-**StockMovement (B, tùy chọn)**: nhật ký kho, giúp giải thích vì sao số tồn đổi.
+**Bảng dữ liệu Quản lý kho theo Nguyên liệu (v1.3):**
 
-| Cột       | Kiểu     | Ràng buộc / ghi chú |
-|-----------|----------|---------------------|
-| id        | Int      | PK, autoincrement |
-| productId | Int      | FK Product |
-| type      | Enum     | ORDER_RESERVE (trừ khi đặt), ORDER_RELEASE (hoàn khi hủy), RESTOCK (barista nhập) |
-| quantity  | Int      | Âm là trừ, dương là cộng |
-| orderId   | Int?     | FK Order, có với ORDER_RESERVE và ORDER_RELEASE |
-| userId    | Int?     | Barista nhập kho |
-| createdAt | DateTime | default now |
+* **Ingredient**: Nguyên liệu thực tế trong quầy pha chế (Cà phê hạt, Sữa đặc, Cốt trà nhài, Muối tinh, Siro đào, Kem béo...).
+  * `id`: Int, PK
+  * `name`: String (unique)
+  * `unit`: String (ml, g, ly, lon...)
+  * `stock`: Float (≥ 0, tồn kho thực tế)
+  * `minThreshold`: Float (ngưỡng báo động Sắp hết / Tạm hết)
+  * `version`: Int (default 0, **dùng cho Optimistic Locking**)
+  * `isActive`: Boolean (default true)
 
-Ghi dòng này **trong cùng transaction** với lúc đổi `Product.stock`, để nhật ký luôn khớp số tồn.
+* **ProductRecipe**: Định lượng nguyên liệu tiêu chuẩn cho món (size M chuẩn).
+  * `id`: Int, PK
+  * `productId`: Int, FK Product
+  * `ingredientId`: Int, FK Ingredient
+  * `quantity`: Float (lượng cần cho 1 ly size M; size S = 0.8x, size L = 1.2x)
+
+* **ToppingRecipe**: Định lượng nguyên liệu tiêu thụ cho từng phần topping.
+  * `id`: Int, PK
+  * `toppingId`: Int, FK Topping
+  * `ingredientId`: Int, FK Ingredient
+  * `quantity`: Float
+
+* **OrderItem.consumption (Json)**: Snapshot ghi nhận chính xác mảng các nguyên liệu và số lượng đã trừ tại thời điểm đặt hàng: `[{ ingredientId, name, unit, amount }]`. Khi đơn bị hủy (`CANCELLED`), hệ thống đọc trường này để hoàn kho chính xác 100%.
+
+* **StockMovement**: Nhật ký biến động kho nguyên liệu (thay thế cho việc ghi theo số ly sản phẩm).
+  * `id`: Int, PK
+  * `ingredientId`: Int, FK Ingredient
+  * `type`: Enum `ORDER_RESERVE` (trừ khi đặt hàng), `ORDER_RELEASE` (hoàn khi hủy đơn), `RESTOCK` (barista nhập thêm kho), `ADJUST` (kiểm kê điều chỉnh)
+  * `quantity`: Float (âm là trừ, dương là cộng)
+  * `orderId`: Int? (FK Order)
+  * `userId`: Int? (FK User - Barista thực hiện)
+  * `note`: String?
+  * `createdAt`: DateTime
 
 ### 3.3. Quan hệ
 
-User 1—N Order, Order 1—N OrderItem, Product 1—N OrderItem, Order 1—N Payment (có thể nhiều lần thử), PromoCode liên kết với Order qua promoCode.
+User 1—N Order, Order 1—N OrderItem, Product 1—N OrderItem, Order 1—N Payment, Product 1—N ProductRecipe, Topping 1—N ToppingRecipe, Ingredient 1—N StockMovement.
 
 ## 4. Quy tắc nghiệp vụ dùng chung
 
@@ -208,36 +229,53 @@ Topping mẫu: Trân châu +5.000, Kem cheese +7.000, Thạch +4.000.
 
 > **Lưu ý:** wireframe trong đề (Cappuccino M = 45.000, Trà đào L ×2 = 78.000, tổng 123.000) cho thấy giá không đổi theo size. Con số phụ thu ở trên là **giả định của nhóm**, cần chốt với giảng viên. Đặt bảng phụ thu trong một file hằng số (common/pricing/pricing.constants.ts) để đổi một chỗ là xong.
 
-### 4.2. Tồn kho và optimistic locking (Task 10)
+### 4.2. Tồn kho và optimistic locking theo công thức nguyên liệu (Task 10 & Nâng cấp v1.3)
 
-- **Giữ hàng ngay khi tạo đơn** (POST /orders), không đợi thanh toán.
+- **Chuyển đổi từ `Product.stock` sang `Ingredient.stock`:** Thay vì trừ số ly thô sơ, Server tự động phân giải từng món trong giỏ hàng thành các định lượng nguyên liệu cụ thể (`RecipeService`):
+  * **Hệ số kích cỡ:** Size M làm chuẩn (hệ số 1.0), Size S (0.8), Size L (1.2).
+  * **Topping:** Cộng dồn thêm nguyên liệu tương ứng cho từng topping được chọn.
+  * **Gộp nhu cầu:** Gộp tổng số lượng cần dùng của từng nguyên liệu trên toàn bộ giỏ hàng (`aggregateRequirements`).
+- **Giữ hàng ngay khi tạo đơn** (`POST /orders`), không đợi thanh toán.
+- **Trừ kho tự động trên Server:** Tự động kiểm tra và trừ kho trong giao dịch CSDL ACID.
+- **Nhập/Kiểm kê kho (B):** Barista thực hiện qua nhóm API `POST /ingredients/:id/stock` và `POST /ingredients/:id/adjust`.
+- **Hoàn kho an toàn:** Khi đơn chuyển sang `CANCELLED` (do khách hủy hoặc quá hạn 15 phút), Server đọc lại `OrderItem.consumption` để hoàn trả đúng số lượng từng nguyên liệu và ghi `StockMovement (ORDER_RELEASE)`.
 
-- **Trừ kho luôn do server tự làm** khi tạo đơn. Barista không trừ kho bằng tay, vì như vậy dễ quên hoặc trừ sai.
+Thuật toán trừ kho nguyên tử theo công thức nguyên liệu (trong một transaction, **sắp xếp theo `ingredientId` tăng dần** để loại bỏ triệt để nguy cơ Deadlock giữa các request song song):
 
-- **Nhập kho (B)** do barista làm qua `POST /products/:id/stock` (mục 6.16): cộng dồn số lượng, không ghi đè.
+```typescript
+// Sắp xếp ID nguyên liệu tăng dần trước khi trừ để triệt tiêu Deadlock
+const sortedReqs = aggregateRequirements(orderItems).sort((a, b) => a.ingredientId - b.ingredientId);
 
-- **Hoàn kho** khi đơn chuyển sang CANCELLED.
+for (const req of sortedReqs) {
+  const current = await tx.ingredient.findUnique({ where: { id: req.ingredientId } });
+  if (!current || current.stock < req.amount) {
+    // Không đủ nguyên liệu -> Báo lỗi và dừng ngay
+    throw new ConflictException({
+      code: 'OUT_OF_STOCK',
+      details: [{ ingredientId: req.ingredientId, ingredient: current?.name, available: current?.stock, required: req.amount }]
+    });
+  }
 
-- Đơn PAYMENT_FAILED vẫn giữ hàng (khách có thể thử lại), cho đến khi hủy.
+  // Cập nhật nguyên tử với Optimistic Locking qua version
+  const r = await tx.ingredient.updateMany({
+    where: { id: req.ingredientId, version: current.version, stock: { gte: req.amount } },
+    data:  { stock: { decrement: req.amount }, version: { increment: 1 } },
+  });
 
-- **Giới hạn của MVP:** PENDING và PAYMENT_FAILED chưa có cơ chế tự hết hạn, nên đơn bị bỏ dở giữ hàng cho đến khi người dùng chủ động hủy. Nếu còn thời gian, thêm Order.expiresAt (15 phút) và một cron (@nestjs/schedule) tự hủy đơn PENDING quá hạn bằng đúng luồng hủy ở mục 6.11.
+  if (r.count === 0) {
+    const fresh = await tx.ingredient.findUnique({ where: { id: req.ingredientId } });
+    if (!fresh || fresh.stock < req.amount) throw OUT_OF_STOCK;
+    throw STOCK_RETRY; // Lệch version do request đồng thời khác vừa cập nhật -> Thử lại transaction
+  }
 
-Thuật toán trừ kho cho mỗi sản phẩm (trong một transaction, **sắp xếp theo productId tăng dần** để tránh deadlock):
-
-```
-// Chạy trong prisma.$transaction; nếu ném STOCK_RETRY thì thử lại CẢ giao dịch
-const r = await tx.product.updateMany({
-  where: { id, version: current.version, stock: { gte: qty } },
-  data:  { stock: { decrement: qty }, version: { increment: 1 } },
-});
-if (r.count === 0) {
-  const now = await tx.product.findUnique({ where: { id } });
-  if (now.stock < qty) throw OUT_OF_STOCK;  // thật sự hết hàng: dừng ngay
-  throw STOCK_RETRY;                        // còn hàng nhưng version đã đổi: thử lại
+  // Ghi nhật ký kho
+  await tx.stockMovement.create({
+    data: { ingredientId: req.ingredientId, type: 'ORDER_RESERVE', quantity: -req.amount, orderId: order.id }
+  });
 }
 ```
 
-Nếu một sản phẩm trong giỏ thất bại thì **toàn bộ transaction rollback**, không có đơn nào được tạo. Khi chỉ lệch version mà kho vẫn còn hàng thì thử lại cả giao dịch, tối đa 10 lần, nghỉ ngẫu nhiên 10 đến 50 ms giữa các lần; chỉ khi hết lượt mới ném STOCK_CONFLICT. Với 10 request đồng thời, mỗi vòng chỉ chắc chắn một request thắng, nên 3 lần thử là không đủ và test (c) ở mục 10 sẽ chập chờn.
+Nếu bất kỳ nguyên liệu nào trong giỏ bị thiếu thì **toàn bộ transaction tự động rollback**, không có đơn hàng nào được tạo và không có nguyên liệu nào bị trừ dở dang. Khi chỉ lệch `version` do tranh chấp mà kho vẫn đủ, hệ thống tự động thử lại toàn bộ transaction tối đa 10 lần với jitter 10–50ms. Chỉ khi cạn lượt thử mới trả về `STOCK_CONFLICT`.
 
 ### 4.3. Khuyến mãi (Task 10)
 
