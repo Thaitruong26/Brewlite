@@ -7,7 +7,7 @@ import {
   OnModuleInit,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { OrderStatus, Role } from '../generated/prisma/client.js';
+import { OrderStatus, PaymentStatus, Role } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PricingService } from '../common/pricing/pricing.service.js';
 import { RecipeService } from '../common/recipe/recipe.service.js';
@@ -142,7 +142,29 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          const total = subtotal - discountAmount;
+          // 4.1 Áp dụng điểm tích lũy (nếu có yêu cầu: 100 điểm = 1.000đ -> 1 điểm = 10đ)
+          let pointsUsed = 0;
+          if (dto.usePoints && userId) {
+            const currentUser = await tx.user.findUnique({
+              where: { id: userId },
+              select: { loyaltyPoints: true },
+            });
+            if (currentUser && currentUser.loyaltyPoints > 0) {
+              const remainingBeforePoints = Math.max(0, subtotal - discountAmount);
+              const maxPointsDiscount = currentUser.loyaltyPoints * 10;
+              const pointsDiscount = Math.min(remainingBeforePoints, maxPointsDiscount);
+              pointsUsed = Math.ceil(pointsDiscount / 10);
+              if (pointsUsed > 0) {
+                await tx.user.update({
+                  where: { id: userId },
+                  data: { loyaltyPoints: { decrement: pointsUsed } },
+                });
+                discountAmount += pointsDiscount;
+              }
+            }
+          }
+
+          const total = Math.max(0, subtotal - discountAmount);
 
           // 5. Lưu Order và OrderItem (chụp snapshot tên, topping, giá)
           const newOrder = await tx.order.create({
@@ -154,6 +176,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
               total,
               promoCode: dto.promoCode || null,
               pointsEarned: 0,
+              pointsUsed,
               items: {
                 create: pricing.lines.map((line, idx) => ({
                   productId: line.productId,
@@ -202,6 +225,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             discountAmount: newOrder.discountAmount,
             total: newOrder.total,
             promoCode: newOrder.promoCode,
+            pointsUsed: newOrder.pointsUsed,
             createdAt: newOrder.createdAt.toISOString(),
             expiresAt: new Date(newOrder.createdAt.getTime() + ORDER_PAYMENT_TIMEOUT_MS).toISOString(),
           };
@@ -254,7 +278,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         include: {
           items: true,
           payments: {
-            select: { id: true, method: true, status: true, amount: true, createdAt: true },
+            select: { id: true, method: true, status: true, amount: true, createdAt: true, refundedAt: true, refundedAmount: true, refundRef: true },
           },
         },
       }),
@@ -271,6 +295,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         total: order.total,
         promoCode: order.promoCode,
         pointsEarned: order.pointsEarned,
+        pointsUsed: order.pointsUsed,
         itemCount,
         items: order.items.map((i) => ({
           id: i.id,
@@ -319,6 +344,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             method: true,
             status: true,
             providerRef: true,
+            refundedAt: true,
+            refundedAmount: true,
+            refundRef: true,
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
@@ -359,6 +387,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       total: order.total,
       promoCode: order.promoCode,
       pointsEarned: order.pointsEarned,
+        pointsUsed: order.pointsUsed,
       payments: order.payments.map((p) => ({
         id: p.id,
         orderId: p.orderId,
@@ -366,6 +395,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         method: p.method,
         status: p.status,
         providerRef: p.providerRef,
+        refundedAt: p.refundedAt?.toISOString() ?? null,
+        refundedAmount: p.refundedAmount,
+        refundRef: p.refundRef,
         createdAt: p.createdAt.toISOString(),
       })),
       createdAt: order.createdAt.toISOString(),
@@ -426,6 +458,16 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           where: { code: order.promoCode },
           data: {
             usedCount: { decrement: 1 },
+          },
+        });
+      }
+
+      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
+      if (order.pointsUsed > 0 && order.userId) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: {
+            loyaltyPoints: { increment: order.pointsUsed },
           },
         });
       }
@@ -519,6 +561,16 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
+      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
+      if (order.pointsUsed > 0 && order.userId) {
+        await tx.user.update({
+          where: { id: order.userId },
+          data: {
+            loyaltyPoints: { increment: order.pointsUsed },
+          },
+        });
+      }
+
       // 3. Đổi trạng thái sang CANCELLED
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
@@ -590,6 +642,62 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
+      // Nếu đơn chuyển sang PAID (Barista bấm xác nhận tiền), cập nhật payment và tự động cộng điểm thưởng cho khách hàng
+      if (nextStatus === OrderStatus.PAID) {
+        const existingProcessing = await tx.payment.findFirst({
+          where: { orderId: order.id, status: PaymentStatus.PROCESSING },
+        });
+
+        if (existingProcessing) {
+          await tx.payment.update({
+            where: { id: existingProcessing.id },
+            data: { status: PaymentStatus.SUCCESS },
+          });
+        } else {
+          const existingAny = await tx.payment.findFirst({
+            where: { orderId: order.id },
+          });
+          if (!existingAny) {
+            await tx.payment.create({
+              data: {
+                orderId: order.id,
+                amount: order.total,
+                method: 'WALLET',
+                status: PaymentStatus.SUCCESS,
+                idempotencyKey: `WALLET-QR-${order.id}-${Date.now()}`,
+                requestHash: `HASH-WALLET-${order.id}`,
+              },
+            });
+          }
+        }
+
+        if (order.userId) {
+          const points = Math.floor(order.total / 1000);
+          if (points > 0) {
+            const existingTransaction = await tx.loyaltyTransaction.findUnique({
+              where: { orderId: order.id },
+            });
+            if (!existingTransaction) {
+              await tx.loyaltyTransaction.create({
+                data: {
+                  userId: order.userId,
+                  orderId: order.id,
+                  points: points,
+                },
+              });
+              await tx.user.update({
+                where: { id: order.userId },
+                data: { loyaltyPoints: { increment: points } },
+              });
+              await tx.order.update({
+                where: { id: order.id },
+                data: { pointsEarned: points },
+              });
+            }
+          }
+        }
+      }
+
       return {
         id: updated.id,
         code: `#${updated.id}`,
@@ -615,7 +723,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
-    let statuses: OrderStatus[] = [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED];
+    let statuses: OrderStatus[] = [
+      OrderStatus.PENDING,
+      OrderStatus.PAID,
+      OrderStatus.PREPARING,
+      OrderStatus.READY,
+      OrderStatus.COMPLETED,
+      OrderStatus.CANCELLED,
+    ];
     if (query.status?.trim()) {
       statuses = query.status.split(',').map((s) => s.trim()) as OrderStatus[];
     }

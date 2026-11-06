@@ -5,6 +5,7 @@ import {
   ConflictException,
   ForbiddenException,
   HttpException,
+  UnprocessableEntityException,
   Optional,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
@@ -32,6 +33,7 @@ export class PaymentsService {
     dto: CreatePaymentDto,
     idempotencyKey: string,
     user?: { id: number; role?: string },
+    res?: any,
   ) {
     if (!idempotencyKey?.trim()) {
       throw new BadRequestException('Idempotency-Key is required');
@@ -53,21 +55,26 @@ export class PaymentsService {
 
     if (existing) {
       if (existing.requestHash !== requestHash) {
-        throw new ConflictException(
-          'Idempotency-Key was used with a different request',
-        );
+        throw new UnprocessableEntityException({
+          code: 'IDEMPOTENCY_KEY_REUSED',
+          message: 'Idempotency-Key was used with a different request',
+        });
       }
 
-     if (existing.status === 'FAILED') {
-  const snapshot = existing.responseSnapshot;
+      if (res && typeof res.setHeader === 'function') {
+        res.setHeader('Idempotent-Replayed', 'true');
+      }
 
-  throw new HttpException(
-    snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
-      ? snapshot
-      : { message: 'Payment failed' },
-    402,
-  );
-}
+      if (existing.status === 'FAILED') {
+        const snapshot = existing.responseSnapshot;
+
+        throw new HttpException(
+          snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
+            ? snapshot
+            : { message: 'Payment failed' },
+          402,
+        );
+      }
 
       return existing.responseSnapshot ?? existing;
     }
@@ -84,10 +91,11 @@ export class PaymentsService {
       throw new ForbiddenException('Bạn không có quyền thanh toán đơn hàng này');
     }
 
-    if (order.status !== 'PENDING') {
-      throw new BadRequestException(
-        'Order is not available for payment',
-      );
+    if (order.status !== 'PENDING' && order.status !== 'PAYMENT_FAILED') {
+      throw new BadRequestException({
+        code: 'ORDER_NOT_AVAILABLE_FOR_PAYMENT',
+        message: 'Order is not available for payment',
+      });
     }
 
     if (order.createdAt) {
@@ -171,12 +179,23 @@ export class PaymentsService {
         },
       });
 
-      assertTransition(order.status as any, success ? 'PAID' : 'PAYMENT_FAILED');
+      // Theo Sơ đồ 9.1: PAYMENT_FAILED chỉ cho phép thử lại quay về PENDING
+      // Nếu đơn đang ở PAYMENT_FAILED, chuyển về PENDING trước khi sang PAID / PAYMENT_FAILED
+      if (order.status === 'PAYMENT_FAILED') {
+        assertTransition('PAYMENT_FAILED' as any, 'PENDING' as any);
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'PENDING' },
+        });
+      }
+
+      const targetStatus = success ? 'PAID' : 'PAYMENT_FAILED';
+      assertTransition('PENDING' as any, targetStatus as any);
 
       await tx.order.update({
         where: { id: order.id },
         data: {
-          status: success ? 'PAID' : 'PAYMENT_FAILED',
+          status: targetStatus,
         },
       });
 

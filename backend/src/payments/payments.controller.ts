@@ -3,6 +3,7 @@ import {
   Controller,
   Headers,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -11,6 +12,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { PaymentsService } from './payments.service.js';
 import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
@@ -34,7 +36,8 @@ export class PaymentsController {
     @Body() dto: CreatePaymentDto,
     @Headers('idempotency-key') idempotencyKey: string,
     @CurrentUser() user: any,
+    @Res({ passthrough: true }) res?: Response,
   ) {
-    return this.paymentsService.createPayment(dto, idempotencyKey, user);
+    return this.paymentsService.createPayment(dto, idempotencyKey, user, res);
   }
 }

@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { UnprocessableEntityException } from '@nestjs/common';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PromotionsService } from './promotions.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -90,15 +90,15 @@ describe('PromotionsService', () => {
       expect(result.finalPrice).toBe(65000);
     });
 
-    it('should throw NotFoundException if promo does not exist', async () => {
+    it('should throw UnprocessableEntityException 422 if promo does not exist', async () => {
       prisma.promoCode.findUnique.mockResolvedValue(null);
 
       await expect(
         service.validate({ code: 'KHONG_CO', orderValue: 100000 }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow(UnprocessableEntityException);
     });
 
-    it('should throw BadRequestException if promo is inactive', async () => {
+    it('should throw UnprocessableEntityException 422 if promo is inactive', async () => {
       prisma.promoCode.findUnique.mockResolvedValue({
         ...validPercentPromo,
         isActive: false,
@@ -106,10 +106,10 @@ describe('PromotionsService', () => {
 
       await expect(
         service.validate({ code: 'BREW10', orderValue: 100000 }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(UnprocessableEntityException);
     });
 
-    it('should throw BadRequestException if promo has expired', async () => {
+    it('should throw UnprocessableEntityException 422 if promo has expired', async () => {
       prisma.promoCode.findUnique.mockResolvedValue({
         ...validPercentPromo,
         expiresAt: new Date(Date.now() - 10000), // đã hết hạn
@@ -117,18 +117,18 @@ describe('PromotionsService', () => {
 
       await expect(
         service.validate({ code: 'BREW10', orderValue: 100000 }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(UnprocessableEntityException);
     });
 
-    it('should throw BadRequestException if orderValue is below minOrderValue', async () => {
+    it('should throw UnprocessableEntityException 422 if orderValue is below minOrderValue', async () => {
       prisma.promoCode.findUnique.mockResolvedValue(validPercentPromo);
 
       await expect(
         service.validate({ code: 'BREW10', orderValue: 30000 }), // min 50.000
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(UnprocessableEntityException);
     });
 
-    it('should throw BadRequestException if promo reached usage limit', async () => {
+    it('should throw UnprocessableEntityException 422 if promo reached usage limit', async () => {
       prisma.promoCode.findUnique.mockResolvedValue({
         ...validPercentPromo,
         usageLimit: 50,
@@ -137,7 +137,7 @@ describe('PromotionsService', () => {
 
       await expect(
         service.validate({ code: 'BREW10', orderValue: 100000 }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(UnprocessableEntityException);
     });
   });
 });

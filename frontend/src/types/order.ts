@@ -45,6 +45,7 @@ export interface CreateOrderItemDto {
 export interface CreateOrderDto {
   items: CreateOrderItemDto[];
   promoCode?: string;
+  usePoints?: boolean;
 }
 
 export interface OrderItemResponse {
@@ -60,6 +61,9 @@ export interface OrderItemResponse {
 }
 
 export interface OrderPaymentSnapshot {
+  refundedAt?: string | null;
+  refundedAmount?: number | null;
+  refundRef?: string | null;
   id?: number;
   method: PaymentMethod;
   status: PaymentStatus;
@@ -79,6 +83,7 @@ export interface OrderResponse {
   total: number;
   promoCode?: string | null;
   pointsEarned?: number;
+  pointsUsed?: number;
   payments?: OrderPaymentSnapshot[];
   createdAt: string;
   updatedAt?: string;
@@ -106,6 +111,7 @@ export interface PaymentResponse {
     status: OrderStatus;
     total: number;
     pointsEarned: number;
+    pointsUsed?: number;
   };
 }
 
@@ -125,4 +131,3 @@ export interface ApiErrorResponse {
   path?: string;
   timestamp?: string;
 }
-

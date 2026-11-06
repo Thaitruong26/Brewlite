@@ -1,7 +1,6 @@
 import {
-  BadRequestException,
   Injectable,
-  NotFoundException,
+  UnprocessableEntityException,
   Optional,
 } from '@nestjs/common';
 import { ValidatePromotionDto } from './dto/validate-promotion.dto.js';
@@ -24,7 +23,7 @@ export class PromotionsService {
     });
 
     if (!promo) {
-      throw new NotFoundException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_NOT_FOUND',
         message: 'Mã khuyến mãi không tồn tại hoặc đã bị xóa!',
       });
@@ -32,7 +31,7 @@ export class PromotionsService {
 
     // 2. Kiểm tra trạng thái kích hoạt (isActive)
     if (!promo.isActive) {
-      throw new BadRequestException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_INACTIVE',
         message: 'Mã khuyến mãi này hiện đang bị tạm khóa!',
       });
@@ -41,14 +40,14 @@ export class PromotionsService {
     // 3. Kiểm tra thời gian sử dụng (startsAt & expiresAt)
     const now = new Date();
     if (now < promo.startsAt) {
-      throw new BadRequestException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_NOT_STARTED',
         message: `Mã khuyến mãi chưa đến thời gian áp dụng (bắt đầu từ ${promo.startsAt.toLocaleDateString('vi-VN')})!`,
         details: { startsAt: promo.startsAt.toISOString() },
       });
     }
     if (now > promo.expiresAt) {
-      throw new BadRequestException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_EXPIRED',
         message: `Mã khuyến mãi đã hết hạn sử dụng (hết hạn ngày ${promo.expiresAt.toLocaleDateString('vi-VN')})!`,
         details: { expiresAt: promo.expiresAt.toISOString() },
@@ -93,7 +92,7 @@ export class PromotionsService {
 
     // 4. Kiểm tra giá trị đơn tối thiểu (minOrderValue)
     if (orderValue < promo.minOrderValue) {
-      throw new BadRequestException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_MIN_ORDER_NOT_MET',
         message: `Đơn hàng chưa đạt giá trị tối thiểu ${promo.minOrderValue.toLocaleString('vi-VN')}đ để dùng mã này (cần thêm ${(promo.minOrderValue - orderValue).toLocaleString('vi-VN')}đ)!`,
         details: {
@@ -105,7 +104,7 @@ export class PromotionsService {
 
     // 5. Kiểm tra lượt dùng (usageLimit & usedCount)
     if (promo.usageLimit !== null && promo.usedCount >= promo.usageLimit) {
-      throw new BadRequestException({
+      throw new UnprocessableEntityException({
         code: 'PROMO_USAGE_EXCEEDED',
         message: 'Mã khuyến mãi này đã hết lượt sử dụng!',
       });

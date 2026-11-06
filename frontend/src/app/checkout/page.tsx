@@ -5,15 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  api,
   ApiError,
   createOrderApi,
   createPaymentApi,
   formatVND,
+  getAccessToken,
+  saveSession,
 } from "@/lib/api";
-import {
-  createMockOrderFromCart,
-  processMockPayment,
-} from "@/lib/mock-checkout";
+import { useAuthStore } from "@/store/auth-store";
 import { calculateItemUnitPrice, useCartStore } from "@/store/cart-store";
 import {
   CreateOrderDto,
@@ -42,15 +42,14 @@ export default function CheckoutPage() {
     promoCode,
     discountAmount: storeDiscountAmount,
     clearCart,
-    loadSampleCart,
     getSubtotal,
     getTotal,
   } = useCartStore();
 
   const [mounted, setMounted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("WALLET");
-  const mockResult: MockPaymentResult = "SUCCESS";
-  const [useMockMode, setUseMockMode] = useState<boolean>(false);
+  const [mockResult, setMockResult] = useState<MockPaymentResult>("SUCCESS");
+  const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
 
   // Đơn hàng đã tạo từ POST /orders (giữ lại khi lỗi 402 để thử thanh toán lại không tạo trùng đơn)
   const [currentOrder, setCurrentOrder] = useState<OrderResponse | null>(null);
@@ -76,7 +75,10 @@ export default function CheckoutPage() {
     const timer = setTimeout(() => {
       setMounted(true);
       setIdempotencyKey(generateUUID());
-          }, 0);
+      if (typeof window !== "undefined") {
+        setUseRewardPoints(localStorage.getItem("useRewardPoints") === "true");
+      }
+    }, 0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -147,22 +149,38 @@ export default function CheckoutPage() {
             ...(item.note ? { note: item.note } : {}),
           })),
           ...(promoCode ? { promoCode: promoCode.trim().toUpperCase() } : {}),
+          ...(useRewardPoints ? { usePoints: true } : {}),
         };
 
-        if (useMockMode) {
-          await new Promise((r) => setTimeout(r, 350));
-          orderToPay = createMockOrderFromCart(
-            orderDto,
-            items,
-            clientDiscount
-          );
-        } else {
-          orderToPay = await createOrderApi(orderDto);
-        }
+        orderToPay = await createOrderApi(orderDto);
         setCurrentOrder(orderToPay);
+
+        // Sau khi đã áp dụng điểm thưởng thành công, xóa cờ và đồng bộ lại số điểm mới của user
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("useRewardPoints");
+        }
+        try {
+          const freshUser = await api<any>("/auth/me");
+          if (freshUser && typeof freshUser.loyaltyPoints === "number") {
+            const token = getAccessToken();
+            if (token) {
+              saveSession(token, freshUser);
+              useAuthStore.getState().setSession(token, freshUser);
+            }
+          }
+        } catch {}
+        queryClient.invalidateQueries({ queryKey: ["me"] });
       }
 
-      // Bước 2: Gọi POST /payments kèm header Idempotency-Key
+      // Nếu chọn Ví điện tử / Quét mã QR MoMo:
+      // Chuyển hướng sang trang mã QR để khách quét mã và Barista đối soát
+      if (paymentMethod === "WALLET") {
+        clearCart();
+        router.push(`/payment?orderId=${orderToPay.id}`);
+        return;
+      }
+
+      // Bước 2: Gọi POST /payments kèm header Idempotency-Key (dành cho CARD hoặc thanh toán trực tiếp)
       setStepStatus("PROCESSING_PAYMENT");
       setLastUsedKey(activeKey);
 
@@ -171,34 +189,6 @@ export default function CheckoutPage() {
         method: paymentMethod,
         ...(mockResult ? { mockResult } : {}),
       };
-
-      if (useMockMode) {
-        await new Promise((r) => setTimeout(r, 450));
-        const mockRes = processMockPayment(paymentDto, activeKey);
-
-        if (mockRes.statusCode !== 201 || mockRes.error) {
-          throw new ApiError(
-            {
-              statusCode: mockRes.error?.statusCode || mockRes.statusCode,
-              code: mockRes.error?.code || "PAYMENT_FAILED",
-              message:
-                mockRes.error?.message || "Thanh toán không thành công.",
-            },
-            { replayed: mockRes.replayed }
-          );
-        }
-
-        if (mockRes.replayed) {
-          setReplayNotice(
-            `Phản hồi Idempotent Replay (Idempotent-Replayed: true) cho key ${activeKey}. Không tạo thanh toán mới!`
-          );
-        }
-
-        // Thành công (201) -> Xóa giỏ hàng và chuyển sang trang xác nhận đơn
-        clearCart();
-        router.push(`/orders/${orderToPay.id}`);
-        return;
-      }
 
       // Gọi API thật POST /payments
       const { data: paymentRes, replayed } = await createPaymentApi(
@@ -320,18 +310,7 @@ export default function CheckoutPage() {
               >
                 Quay lại Thực đơn
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  loadSampleCart();
-                  setCurrentOrder(null);
-                  setErrorState(null);
-                  setIdempotencyKey(generateUUID());
-                }}
-                className="px-5 py-2.5 rounded-xl border border-amber-800 text-amber-900 bg-amber-50 hover:bg-amber-100 text-sm font-semibold transition-colors cursor-pointer"
-              >
-                Nạp giỏ hàng mẫu (docs/api.md)
-              </button>
+
             </div>
           </div>
         ) : (
@@ -491,18 +470,7 @@ export default function CheckoutPage() {
                     <code className="font-mono">localStorage</code> (giữ nguyên
                     nếu thanh toán lỗi 402).
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      loadSampleCart();
-                      setCurrentOrder(null);
-                      setErrorState(null);
-                      setIdempotencyKey(generateUUID());
-                    }}
-                    className="text-amber-800 hover:underline font-medium cursor-pointer"
-                  >
-                    Đặt lại dữ liệu mẫu
-                  </button>
+
                 </div>
               </section>
             </div>
@@ -540,12 +508,12 @@ export default function CheckoutPage() {
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-stone-900">
-                          Ví điện tử (WALLET)
+                          Chuyển khoản QR MoMo (Khuyên dùng)
                         </span>
                         <span className="text-xl">📱</span>
                       </div>
                       <p className="text-xs text-stone-600 mt-1">
-                        Thanh toán tức thì qua Ví MoMo, ZaloPay hoặc VNPay QR.
+                        Quét mã QR MoMo, chuyển khoản kèm mã đơn và chờ Barista xác nhận.
                       </p>
                     </div>
                   </label>
@@ -576,6 +544,55 @@ export default function CheckoutPage() {
                       <p className="text-xs text-stone-600 mt-1">
                         Thẻ ATM nội địa (Napas) hoặc thẻ quốc tế Visa / Mastercard.
                       </p>
+
+                      {paymentMethod === "CARD" && (
+                        <div className="mt-3 pt-3 border-t border-amber-200/60">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[11px] font-semibold text-amber-950 uppercase tracking-wider">
+                              🧪 Chế độ giả lập thẻ (US-05 Demo):
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMockResult("SUCCESS");
+                                setIdempotencyKey(generateUUID());
+                                setErrorState(null);
+                              }}
+                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                mockResult === "SUCCESS"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
+                              }`}
+                            >
+                              ✓ Thành công (PAID ngay)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMockResult("FAILED");
+                                setIdempotencyKey(generateUUID());
+                                setErrorState(null);
+                              }}
+                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                mockResult === "FAILED"
+                                  ? "bg-red-600 text-white shadow-xs"
+                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
+                              }`}
+                            >
+                              ✗ Thất bại (Lỗi 402)
+                            </button>
+                          </div>
+                          <p className="text-[11px] text-stone-500 mt-1.5">
+                            {mockResult === "SUCCESS"
+                              ? "Thẻ sẽ gọi POST /payments và tự động sang trạng thái PAID ngay lập tức."
+                              : "Thẻ sẽ mô phỏng từ chối thẻ (HTTP 402), chuyển sang PAYMENT_FAILED và giữ giỏ hàng."}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </label>
                 </div>
@@ -680,6 +697,7 @@ export default function CheckoutPage() {
                             disabled={isSubmitting}
                             onClick={() => {
                               // Đổi mockResult về SUCCESS nếu người dùng muốn thử lại thành công ngay
+                              setMockResult("SUCCESS");
                               handleConfirmPayment({ forceNewKey: true });
                             }}
                             className="flex-1 px-3 py-2 rounded-lg bg-amber-800 text-white text-xs font-semibold hover:bg-amber-900 transition-colors cursor-pointer"
@@ -711,16 +729,6 @@ export default function CheckoutPage() {
                         >
                           Đi tới trang Đăng nhập
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUseMockMode(true);
-                            setErrorState(null);
-                          }}
-                          className="px-3 py-1.5 rounded-lg border border-red-300 bg-white text-red-900 text-xs font-semibold hover:bg-red-100 cursor-pointer"
-                        >
-                          Chuyển sang Chế độ Dữ liệu giả
-                        </button>
                       </div>
                     )}
                   </div>
@@ -744,7 +752,9 @@ export default function CheckoutPage() {
                     </>
                   ) : (
                     <>
-                      <span>Xác nhận trả</span>
+                      <span>
+                        {paymentMethod === "WALLET" ? "Quét mã QR chuyển khoản" : "Xác nhận trả"}
+                      </span>
                       <span>•</span>
                       <span>{formatVND(displayTotal)}</span>
                     </>

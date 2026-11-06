@@ -15,8 +15,8 @@ describe('Order State Machine - assertTransition', () => {
   it('cho phép các bước chuyển tiếp ngoại lệ hợp lệ (thanh toán lỗi, thử lại, hủy đơn)', () => {
     // PENDING → PAYMENT_FAILED
     expect(() => assertTransition(OrderStatus.PENDING, OrderStatus.PAYMENT_FAILED)).not.toThrow();
-    // PAYMENT_FAILED → PAID (thử lại thành công)
-    expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAID)).not.toThrow();
+    // PAYMENT_FAILED → PENDING (thử lại thanh toán quay về PENDING theo sơ đồ 9.1)
+    expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PENDING)).not.toThrow();
     // PENDING → CANCELLED
     expect(() => assertTransition(OrderStatus.PENDING, OrderStatus.CANCELLED)).not.toThrow();
     // PAYMENT_FAILED → CANCELLED
@@ -25,13 +25,22 @@ describe('Order State Machine - assertTransition', () => {
     expect(() => assertTransition(OrderStatus.PAID, OrderStatus.CANCELLED)).not.toThrow();
   });
 
-  it('chặn các bước nhảy trạng thái sai và ném 409 INVALID_TRANSITION', () => {
+  it('chặn các bước nhảy trạng thái sai theo sơ đồ 9.1 và ném 409 INVALID_TRANSITION', () => {
+    // PAYMENT_FAILED không được nhảy thẳng sang PAID (phải thử lại về PENDING trước theo sơ đồ 9.1)
+    expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAID)).toThrow(ConflictException);
+    // PAYMENT_FAILED không được tự lặp về PAYMENT_FAILED
+    expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAYMENT_FAILED)).toThrow(ConflictException);
+
     // PENDING nhảy thẳng COMPLETED
     expect(() => assertTransition(OrderStatus.PENDING, OrderStatus.COMPLETED)).toThrow(ConflictException);
     // PENDING nhảy thẳng READY
     expect(() => assertTransition(OrderStatus.PENDING, OrderStatus.READY)).toThrow(ConflictException);
     // PENDING nhảy thẳng PREPARING (chưa trả tiền)
     expect(() => assertTransition(OrderStatus.PENDING, OrderStatus.PREPARING)).toThrow(ConflictException);
+
+    // PAID nhảy thẳng sang READY (bỏ qua PREPARING) bị CHẶN theo sơ đồ 9.1
+    expect(() => assertTransition(OrderStatus.PAID, OrderStatus.READY)).toThrow(ConflictException);
+    expect(() => assertTransition(OrderStatus.PAID, OrderStatus.COMPLETED)).toThrow(ConflictException);
 
     // COMPLETED là trạng thái kết thúc, không được chuyển đi đâu
     expect(() => assertTransition(OrderStatus.COMPLETED, OrderStatus.PAID)).toThrow(ConflictException);

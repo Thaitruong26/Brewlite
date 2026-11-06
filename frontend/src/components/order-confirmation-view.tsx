@@ -2,8 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { CancelOrder } from "@/components/cancel-order";
 import { ApiError, formatVND, getOrderByIdApi } from "@/lib/api";
-import { getSavedMockOrders, MOCK_ORDER_1042 } from "@/lib/mock-checkout";
 import { OrderResponse, OrderStatus } from "@/types/order";
 
 const STATUS_BADGE_MAP: Record<
@@ -69,37 +69,16 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
     code: string;
     message: string;
   } | null>(null);
-  const [isUsingMockData, setIsUsingMockData] = useState<boolean>(false);
-
-  const loadMockOrder = useCallback(() => {
-    const numericId = Number(orderId) || 1042;
-    const savedOrders = getSavedMockOrders();
-    const found = savedOrders[numericId] || {
-      ...MOCK_ORDER_1042,
-      id: numericId,
-      code: `#${numericId}`,
-    };
-    setOrder(found);
-    setError(null);
-    setIsUsingMockData(true);
-    setIsLoading(false);
-  }, [orderId]);
 
   const fetchOrder = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setIsUsingMockData(false);
 
     try {
       const data = await getOrderByIdApi(orderId);
       setOrder(data);
     } catch (err) {
       if (err instanceof ApiError) {
-        // Nếu Backend chưa bật (NETWORK_ERROR), tự động hiển thị dữ liệu mẫu của đơn vừa tạo để không gián đoạn demo
-        if (err.code === "NETWORK_ERROR") {
-          loadMockOrder();
-          return;
-        }
         setError({
           statusCode: err.statusCode,
           code: err.code,
@@ -115,7 +94,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [orderId, loadMockOrder]);
+  }, [orderId]);
 
   useEffect(() => {
     let ignore = false;
@@ -127,7 +106,6 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
         if (!ignore) {
           setOrder(data);
           setError(null);
-          setIsUsingMockData(false);
           if (!isPolling) setIsLoading(false);
 
           // Thăm dò tự động mỗi 3 giây để cập nhật tiến trình pha chế từ Barista
@@ -140,10 +118,6 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       } catch (err) {
         if (ignore) return;
         if (!isPolling) {
-          if (err instanceof ApiError && err.code === "NETWORK_ERROR") {
-            loadMockOrder();
-            return;
-          }
           setError({
             statusCode: err instanceof ApiError ? err.statusCode : 500,
             code: err instanceof ApiError ? err.code : "UNKNOWN_ERROR",
@@ -162,7 +136,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       ignore = true;
       if (timer) clearTimeout(timer);
     };
-  }, [orderId, loadMockOrder]);
+  }, [orderId]);
 
   if (isLoading) {
     return (
@@ -199,13 +173,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             >
               Thử tải lại (GET /orders/{orderId})
             </button>
-            <button
-              type="button"
-              onClick={loadMockOrder}
-              className="w-full py-2.5 px-4 rounded-xl border border-amber-800 bg-amber-50 text-amber-900 text-sm font-semibold hover:bg-amber-100 transition-colors cursor-pointer"
-            >
-              Xem bằng Dữ liệu giả (Mock Order #{orderId})
-            </button>
+
             <Link
               href="/"
               className="w-full py-2.5 px-4 rounded-xl border border-stone-200 text-stone-700 text-sm font-medium hover:bg-stone-50 transition-colors"
@@ -257,23 +225,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       </header>
 
       <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 space-y-6">
-        {/* Thông báo nguồn dữ liệu */}
-        {isUsingMockData && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
-            <span>
-              💡 Đang hiển thị dữ liệu xác nhận đơn từ bộ nhớ giả lập theo chuẩn{" "}
-              <code className="font-mono">GET /orders/:id</code> trong{" "}
-              <code className="font-mono">docs/api.md</code>.
-            </span>
-            <button
-              type="button"
-              onClick={fetchOrder}
-              className="font-semibold underline hover:text-amber-950 shrink-0 cursor-pointer"
-            >
-              Gọi lại API thật
-            </button>
-          </div>
-        )}
+
 
         {/* Thẻ xác nhận chính: Mã đơn, trạng thái PAID và dòng "Mời tới quầy lấy nước" */}
         <section className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm text-center relative overflow-hidden">
@@ -285,7 +237,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             Xác nhận đơn hàng
           </p>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mt-1">
-            Đặt hàng thành công
+            {order.status === "CANCELLED" ? "Đơn hàng đã hủy" : "Đặt hàng thành công"}
           </h1>
 
           {/* Mã đơn & Trạng thái PAID */}
@@ -314,7 +266,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
           </div>
 
           {/* Dòng chữ bắt buộc: "Mời tới quầy lấy nước" */}
-          <div className="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 max-w-md mx-auto">
+          {order.status !== "CANCELLED" && <div className="mt-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 max-w-md mx-auto">
             <p className="text-lg font-extrabold text-amber-950 flex items-center justify-center gap-2">
               <span>☕</span>
               <span>Mời tới quầy lấy nước</span>
@@ -325,6 +277,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             </p>
           </div>
 
+          }
           {/* Tiến trình trạng thái đơn hàng (State Machine) */}
           {currentStepIdx !== -1 && (
             <div className="mt-7 pt-6 border-t border-stone-100">
@@ -385,8 +338,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
             <div className="mt-5 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-900">
               <span>🎁</span>
               <span>
-                Bạn đã được cộng <strong>+{order.pointsEarned} điểm thưởng</strong>{" "}
-                tích lũy cho đơn này!
+                {order.status === "CANCELLED" ? <>Đã thu hồi <strong>{order.pointsEarned} điểm thưởng</strong> của đơn đã hủy.</> : <>Bạn đã được cộng <strong>+{order.pointsEarned} điểm thưởng</strong> tích lũy cho đơn này!</>}
               </span>
             </div>
           )}
@@ -472,8 +424,24 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
               </div>
             )}
 
+            {order.pointsUsed && order.pointsUsed > 0 ? (
+              <div className="flex justify-between text-amber-700 font-medium">
+                <span>Điểm thưởng đã dùng:</span>
+                <span className="font-semibold">
+                  -{formatVND(order.pointsUsed * 10)} ({order.pointsUsed} điểm)
+                </span>
+              </div>
+            ) : null}
+
+            {order.pointsEarned && order.pointsEarned > 0 ? (
+              <div className="flex justify-between text-amber-900 bg-amber-50 px-3 py-2 rounded-lg border border-amber-200/70 text-xs">
+                <span>🎁 Điểm tích lũy nhận được:</span>
+                <span className="font-bold">+{order.pointsEarned} điểm</span>
+              </div>
+            ) : null}
+
             <div className="flex justify-between items-baseline pt-2 border-t border-stone-100">
-              <span className="font-bold text-stone-900">Tổng đã thanh toán</span>
+              <span className="font-bold text-stone-900">{order.status === "CANCELLED" ? "Giá trị đơn đã hủy" : "Tổng đã thanh toán"}</span>
               <span className="text-xl font-extrabold text-amber-900">
                 {formatVND(order.total)}
               </span>
@@ -503,14 +471,15 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded font-semibold ${
-                          p.status === "SUCCESS"
+                          p.status === "SUCCESS" && !p.refundedAt
                             ? "bg-emerald-100 text-emerald-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {p.status}
+                        {p.refundedAt ? "Đã hoàn tiền" : p.status === "SUCCESS" ? "Đã thanh toán" : p.status === "PROCESSING" ? "Đang xử lý" : "Thanh toán thất bại"}
                       </span>
                     </div>
+                    {p.refundedAt && <p className="text-stone-600">Đã hoàn tiền {formatVND(p.refundedAmount ?? p.amount)} · {new Date(p.refundedAt).toLocaleString("vi-VN")}</p>}
                     {p.providerRef && (
                       <p className="text-stone-500 font-mono">
                         Mã giao dịch: {p.providerRef}
@@ -546,6 +515,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
           >
             Lịch sử đơn hàng
           </Link>
+          <CancelOrder compact key={order.id} order={order} onRefresh={fetchOrder} onCancelled={() => setOrder((current) => current ? { ...current, status: "CANCELLED" } : current)} />
         </div>
       </main>
     </div>

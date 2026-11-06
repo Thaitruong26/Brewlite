@@ -1,9 +1,11 @@
+
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -104,4 +106,12 @@ export class CreateOrderDto {
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   promoCode?: string;
+
+  @ApiPropertyOptional({
+    description: 'Sử dụng điểm tích lũy để giảm giá (100 điểm = 1.000đ)',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'usePoints phải là boolean' })
+  usePoints?: boolean;
 }
