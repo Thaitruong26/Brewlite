@@ -35,7 +35,7 @@ Client (Next.js App Router) ──[REST API / JWT]──> Controller (NestJS) �
   * [TanStack Query](https://tanstack.com/query) — Caching và đồng bộ trạng thái server
   * [Lucide React](https://lucide.dev/) — Hệ thống icon trực quan
 * **Backend:** 
-  * [NestJS 11](https://nestjs.com/) (Node.js/TypeScript, chuẩn ESM)
+  * [NestJS 12](https://nestjs.com/) (Node.js/TypeScript, chuẩn ESM)
   * [Prisma ORM 7](https://www.prisma.io/) — Quản lý schema, migration và tương tác CSDL
   * [PostgreSQL 16](https://www.postgresql.org/) — Hệ quản trị cơ sở dữ liệu quan hệ
   * [class-validator](https://github.com/typestack/class-validator) & [class-transformer](https://github.com/typestack/class-transformer) — Validation DTO tự động

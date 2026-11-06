@@ -157,10 +157,10 @@ describe('BrewLite E2E Integration Tests', () => {
       expect(() => assertTransition(OrderStatus.READY, OrderStatus.COMPLETED)).not.toThrow();
     });
 
-    it('Allows retry on PAYMENT_FAILED: PAYMENT_FAILED -> PAID & PAYMENT_FAILED -> CANCELLED', () => {
-      expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAID)).not.toThrow();
-      expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED)).not.toThrow();
+    it('Allows retry on PAYMENT_FAILED: only to PENDING or CANCELLED, blocks direct transition to PAID (Sơ đồ 9.1)', () => {
       expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PENDING)).not.toThrow();
+      expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.CANCELLED)).not.toThrow();
+      expect(() => assertTransition(OrderStatus.PAYMENT_FAILED, OrderStatus.PAID)).toThrowError();
     });
   });
 

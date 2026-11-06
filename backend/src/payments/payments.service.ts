@@ -179,12 +179,23 @@ export class PaymentsService {
         },
       });
 
-      assertTransition(order.status as any, success ? 'PAID' : 'PAYMENT_FAILED');
+      // Theo Sơ đồ 9.1: PAYMENT_FAILED chỉ cho phép thử lại quay về PENDING
+      // Nếu đơn đang ở PAYMENT_FAILED, chuyển về PENDING trước khi sang PAID / PAYMENT_FAILED
+      if (order.status === 'PAYMENT_FAILED') {
+        assertTransition('PAYMENT_FAILED' as any, 'PENDING' as any);
+        await tx.order.update({
+          where: { id: order.id },
+          data: { status: 'PENDING' },
+        });
+      }
+
+      const targetStatus = success ? 'PAID' : 'PAYMENT_FAILED';
+      assertTransition('PENDING' as any, targetStatus as any);
 
       await tx.order.update({
         where: { id: order.id },
         data: {
-          status: success ? 'PAID' : 'PAYMENT_FAILED',
+          status: targetStatus,
         },
       });
 

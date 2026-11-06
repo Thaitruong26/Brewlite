@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CancelOrder } from "@/components/cancel-order";
 import { ApiError, formatVND, getOrderByIdApi } from "@/lib/api";
-import { getSavedMockOrders, MOCK_ORDER_1042 } from "@/lib/mock-checkout";
 import { OrderResponse, OrderStatus } from "@/types/order";
 
 const STATUS_BADGE_MAP: Record<
@@ -70,37 +69,16 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
     code: string;
     message: string;
   } | null>(null);
-  const [isUsingMockData, setIsUsingMockData] = useState<boolean>(false);
-
-  const loadMockOrder = useCallback(() => {
-    const numericId = Number(orderId) || 1042;
-    const savedOrders = getSavedMockOrders();
-    const found = savedOrders[numericId] || {
-      ...MOCK_ORDER_1042,
-      id: numericId,
-      code: `#${numericId}`,
-    };
-    setOrder(found);
-    setError(null);
-    setIsUsingMockData(true);
-    setIsLoading(false);
-  }, [orderId]);
 
   const fetchOrder = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    setIsUsingMockData(false);
 
     try {
       const data = await getOrderByIdApi(orderId);
       setOrder(data);
     } catch (err) {
       if (err instanceof ApiError) {
-        // Nếu Backend chưa bật (NETWORK_ERROR), tự động hiển thị dữ liệu mẫu của đơn vừa tạo để không gián đoạn demo
-        if (err.code === "NETWORK_ERROR") {
-          loadMockOrder();
-          return;
-        }
         setError({
           statusCode: err.statusCode,
           code: err.code,
@@ -116,7 +94,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [orderId, loadMockOrder]);
+  }, [orderId]);
 
   useEffect(() => {
     let ignore = false;
@@ -128,7 +106,6 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
         if (!ignore) {
           setOrder(data);
           setError(null);
-          setIsUsingMockData(false);
           if (!isPolling) setIsLoading(false);
 
           // Thăm dò tự động mỗi 3 giây để cập nhật tiến trình pha chế từ Barista
@@ -141,10 +118,6 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       } catch (err) {
         if (ignore) return;
         if (!isPolling) {
-          if (err instanceof ApiError && err.code === "NETWORK_ERROR") {
-            loadMockOrder();
-            return;
-          }
           setError({
             statusCode: err instanceof ApiError ? err.statusCode : 500,
             code: err instanceof ApiError ? err.code : "UNKNOWN_ERROR",
@@ -163,7 +136,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
       ignore = true;
       if (timer) clearTimeout(timer);
     };
-  }, [orderId, loadMockOrder]);
+  }, [orderId]);
 
   if (isLoading) {
     return (
@@ -542,7 +515,7 @@ export function OrderConfirmationView({ orderId }: { orderId: string }) {
           >
             Lịch sử đơn hàng
           </Link>
-          <CancelOrder compact key={order.id} order={order} disabled={isUsingMockData} onRefresh={fetchOrder} onCancelled={() => setOrder((current) => current ? { ...current, status: "CANCELLED" } : current)} />
+          <CancelOrder compact key={order.id} order={order} onRefresh={fetchOrder} onCancelled={() => setOrder((current) => current ? { ...current, status: "CANCELLED" } : current)} />
         </div>
       </main>
     </div>

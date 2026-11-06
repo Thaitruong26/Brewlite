@@ -13,10 +13,6 @@ import {
   getAccessToken,
   saveSession,
 } from "@/lib/api";
-import {
-  createMockOrderFromCart,
-  processMockPayment,
-} from "@/lib/mock-checkout";
 import { useAuthStore } from "@/store/auth-store";
 import { calculateItemUnitPrice, useCartStore } from "@/store/cart-store";
 import {
@@ -53,7 +49,6 @@ export default function CheckoutPage() {
   const [mounted, setMounted] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("WALLET");
   const [mockResult, setMockResult] = useState<MockPaymentResult>("SUCCESS");
-  const [useMockMode, setUseMockMode] = useState<boolean>(false);
   const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
 
   // Đơn hàng đã tạo từ POST /orders (giữ lại khi lỗi 402 để thử thanh toán lại không tạo trùng đơn)
@@ -157,16 +152,7 @@ export default function CheckoutPage() {
           ...(useRewardPoints ? { usePoints: true } : {}),
         };
 
-        if (useMockMode) {
-          await new Promise((r) => setTimeout(r, 350));
-          orderToPay = createMockOrderFromCart(
-            orderDto,
-            items,
-            clientDiscount
-          );
-        } else {
-          orderToPay = await createOrderApi(orderDto);
-        }
+        orderToPay = await createOrderApi(orderDto);
         setCurrentOrder(orderToPay);
 
         // Sau khi đã áp dụng điểm thưởng thành công, xóa cờ và đồng bộ lại số điểm mới của user
@@ -203,34 +189,6 @@ export default function CheckoutPage() {
         method: paymentMethod,
         ...(mockResult ? { mockResult } : {}),
       };
-
-      if (useMockMode) {
-        await new Promise((r) => setTimeout(r, 450));
-        const mockRes = processMockPayment(paymentDto, activeKey);
-
-        if (mockRes.statusCode !== 201 || mockRes.error) {
-          throw new ApiError(
-            {
-              statusCode: mockRes.error?.statusCode || mockRes.statusCode,
-              code: mockRes.error?.code || "PAYMENT_FAILED",
-              message:
-                mockRes.error?.message || "Thanh toán không thành công.",
-            },
-            { replayed: mockRes.replayed }
-          );
-        }
-
-        if (mockRes.replayed) {
-          setReplayNotice(
-            `Phản hồi Idempotent Replay (Idempotent-Replayed: true) cho key ${activeKey}. Không tạo thanh toán mới!`
-          );
-        }
-
-        // Thành công (201) -> Xóa giỏ hàng và chuyển sang trang xác nhận đơn
-        clearCart();
-        router.push(`/orders/${orderToPay.id}`);
-        return;
-      }
 
       // Gọi API thật POST /payments
       const { data: paymentRes, replayed } = await createPaymentApi(
@@ -771,16 +729,6 @@ export default function CheckoutPage() {
                         >
                           Đi tới trang Đăng nhập
                         </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setUseMockMode(true);
-                            setErrorState(null);
-                          }}
-                          className="px-3 py-1.5 rounded-lg border border-red-300 bg-white text-red-900 text-xs font-semibold hover:bg-red-100 cursor-pointer"
-                        >
-                          Chuyển sang Chế độ Dữ liệu giả
-                        </button>
                       </div>
                     )}
                   </div>
