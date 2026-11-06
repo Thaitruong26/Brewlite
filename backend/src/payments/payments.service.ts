@@ -33,6 +33,7 @@ export class PaymentsService {
     dto: CreatePaymentDto,
     idempotencyKey: string,
     user?: { id: number; role?: string },
+    res?: any,
   ) {
     if (!idempotencyKey?.trim()) {
       throw new BadRequestException('Idempotency-Key is required');
@@ -60,16 +61,20 @@ export class PaymentsService {
         });
       }
 
-     if (existing.status === 'FAILED') {
-  const snapshot = existing.responseSnapshot;
+      if (res && typeof res.setHeader === 'function') {
+        res.setHeader('Idempotent-Replayed', 'true');
+      }
 
-  throw new HttpException(
-    snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
-      ? snapshot
-      : { message: 'Payment failed' },
-    402,
-  );
-}
+      if (existing.status === 'FAILED') {
+        const snapshot = existing.responseSnapshot;
+
+        throw new HttpException(
+          snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot)
+            ? snapshot
+            : { message: 'Payment failed' },
+          402,
+        );
+      }
 
       return existing.responseSnapshot ?? existing;
     }

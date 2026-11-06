@@ -45,7 +45,7 @@ export async function getAllBaristaOrders() {
 
 export function updateOrderStatus(
   orderId: number,
-  status: "PREPARING" | "READY" | "COMPLETED",
+  status: "PAID" | "PREPARING" | "READY" | "COMPLETED",
 ) {
   return apiRequest<BaristaOrder>(`/orders/${orderId}/status`, {
     method: "PATCH",
@@ -122,3 +122,22 @@ export function addIngredientStock(
     body: { quantity, note },
   });
 }
+
+export interface ProductRecipeItem {
+  ingredientId: number;
+  name: string;
+  unit: string;
+  quantity: number;
+}
+
+export interface ProductRecipeResponse {
+  productId: number;
+  items: ProductRecipeItem[];
+}
+
+export function getProductRecipe(productId: number) {
+  return apiRequest<ProductRecipeResponse>(`/products/${productId}/recipe`, {
+    authenticated: true,
+  });
+}
+

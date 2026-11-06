@@ -4,12 +4,12 @@ import { OrderStatus } from '../../generated/prisma/client.js';
 
 export class UpdateOrderStatusDto {
   @ApiProperty({
-    description: 'Trạng thái chuyển tiếp tiếp theo (PREPARING, READY, COMPLETED)',
-    enum: [OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED],
-    example: OrderStatus.PREPARING,
+    description: 'Trạng thái chuyển tiếp tiếp theo (PAID, PREPARING, READY, COMPLETED)',
+    enum: [OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED],
+    example: OrderStatus.PAID,
   })
-  @IsIn([OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED], {
-    message: 'Trạng thái chỉ có thể là PREPARING, READY hoặc COMPLETED',
+  @IsIn([OrderStatus.PAID, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.COMPLETED], {
+    message: 'Trạng thái chỉ có thể là PAID, PREPARING, READY hoặc COMPLETED',
   })
   status: OrderStatus;
 }

@@ -25,6 +25,7 @@ export function getAccessToken(): string | null {
     const sessionToken =
       window.sessionStorage.getItem("brewlite_access_token") ||
       window.sessionStorage.getItem("accessToken") ||
+      window.sessionStorage.getItem("access_token") ||
       window.sessionStorage.getItem("token");
     if (sessionToken) return sessionToken;
 
@@ -40,6 +41,7 @@ export function getAccessToken(): string | null {
   // 2. Dự phòng localStorage
   const directToken =
     window.localStorage.getItem("accessToken") ||
+    window.localStorage.getItem("access_token") ||
     window.localStorage.getItem("token") ||
     window.localStorage.getItem("brewlite_access_token") ||
     window.localStorage.getItem("brewlite_token");
@@ -333,6 +335,19 @@ export async function getOrderByIdApi(
 ): Promise<OrderResponse> {
   const { data } = await apiRequest<OrderResponse>(`/orders/${orderId}`, {
     method: "GET",
+  });
+  return data;
+}
+
+/**
+ * Task 10: POST /orders/:id/cancel
+ * Hủy đơn hàng và hoàn nguyên liệu vào kho
+ */
+export async function cancelOrderApi(
+  orderId: number | string,
+): Promise<OrderResponse> {
+  const { data } = await apiRequest<OrderResponse>(`/orders/${orderId}/cancel`, {
+    method: "POST",
   });
   return data;
 }
