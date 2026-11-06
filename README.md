@@ -183,7 +183,6 @@ npm --prefix frontend run build
 ```
 
 ---
-
 ## 🔄 8. Quy trình CI/CD (GitHub Actions)
 
 Dự án tích hợp sẵn quy trình CI/CD tự động qua GitHub Actions:

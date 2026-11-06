@@ -644,10 +644,32 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
       // Nếu đơn chuyển sang PAID (Barista bấm xác nhận tiền), cập nhật payment và tự động cộng điểm thưởng cho khách hàng
       if (nextStatus === OrderStatus.PAID) {
-        await tx.payment.updateMany({
+        const existingProcessing = await tx.payment.findFirst({
           where: { orderId: order.id, status: PaymentStatus.PROCESSING },
-          data: { status: PaymentStatus.SUCCESS },
         });
+
+        if (existingProcessing) {
+          await tx.payment.update({
+            where: { id: existingProcessing.id },
+            data: { status: PaymentStatus.SUCCESS },
+          });
+        } else {
+          const existingAny = await tx.payment.findFirst({
+            where: { orderId: order.id },
+          });
+          if (!existingAny) {
+            await tx.payment.create({
+              data: {
+                orderId: order.id,
+                amount: order.total,
+                method: 'WALLET',
+                status: PaymentStatus.SUCCESS,
+                idempotencyKey: `WALLET-QR-${order.id}-${Date.now()}`,
+                requestHash: `HASH-WALLET-${order.id}`,
+              },
+            });
+          }
+        }
 
         if (order.userId) {
           const points = Math.floor(order.total / 1000);
