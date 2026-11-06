@@ -50,7 +50,7 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
         where: { name: 'Nguyên Liệu Test Đồng Thời' },
         create: {
           name: 'Nguyên Liệu Test Đồng Thời',
-          unit: 'g',
+          unit: 'G',
           stock: 5,
           minThreshold: 1,
           version: 0,
@@ -74,12 +74,13 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
           name: 'Món Test Đồng Thời Concurrency',
           price: 35000,
           category: 'Trà',
+          imageUrl: '',
           isActive: true,
           productRecipes: {
             create: [
               {
                 ingredientId: testIngredientId,
-                quantity: 1, // 1g/ly size M
+                quantity: 1,
               },
             ],
           },
