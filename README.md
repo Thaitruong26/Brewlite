@@ -130,6 +130,13 @@ Hệ thống đã nạp sẵn dữ liệu mẫu (`seed data`) để kiểm thử
 | **Khách hàng thân thiết** | `demo@brewlite.com` | `Demo@1234` | Đặt hàng, áp mã giảm giá, sử dụng điểm tích lũy thành viên, xem lịch sử |
 | **Mã giảm giá mẫu** | `WELCOME50` (Giảm 50%, tối đa 25.000đ), `FREESHIP` (Giảm 15.000đ) |
 
+### 5.1. Kịch bản Demo Luồng Thanh toán Ví điện tử MoMo QR (Chờ Barista xác nhận)
+Khác với phương thức **Thẻ ngân hàng (CARD)** đi qua cổng API trực tiếp `POST /payments` được chuyển thẳng sang `PAID`, phương thức **Ví điện tử (WALLET / MoMo QR)** mô phỏng sát thực tế nghiệp vụ quán cà phê:
+1. **Khách đặt món & Chọn Ví điện tử:** Tại trang Checkout, khách chọn phương thức *Ví điện tử (MoMo)* rồi nhấn *Xác nhận đặt hàng*. Hệ thống gọi `POST /orders` tạo đơn ở trạng thái ban đầu là `PENDING`.
+2. **Trang thanh toán QR:** Khách được chuyển tới `/payment?orderId={id}` với mã QR động (chứa nội dung chuyển khoản mã đơn hàng), bộ đếm ngược 15 phút, và dòng trạng thái: *"Chờ Barista xác nhận tiền vào tài khoản"*.
+3. **Barista đối soát tại màn hình KDS:** Barista mở màn hình điều phối [`/barista`](http://localhost:3000/barista), chuyển sang tab **"Chờ thanh toán"**, kiểm tra giao dịch tiền về trên app MoMo Merchant và bấm **"✓ Xác nhận đã nhận tiền (PAID)"**.
+4. **Tự động chuyển tiếp Real-time:** Màn hình khách hàng tự động thăm dò (polling mỗi 2-3s) nhận diện đơn đã sang `PAID` và tự động điều hướng sang trang xác nhận đơn [`/orders/{id}`](http://localhost:3000/orders) để khách theo dõi Barista pha chế.
+
 ---
 
 ## 📁 6. Cấu trúc thư mục dự án (Project Structure)
