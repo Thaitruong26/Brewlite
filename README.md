@@ -6,7 +6,7 @@
 
 ---
 
-## 📖 1. Giới thiệu tổng quan (Project Overview)
+##  1. Giới thiệu tổng quan (Project Overview)
 
 **BrewLite** là nền tảng ứng dụng đặt đồ uống và quản lý vận hành quầy pha chế theo định hướng **không dùng tiền mặt (cashless)**. Hệ thống giải quyết bài toán quá tải, giảm thiểu thời gian xếp hàng chờ đợi vào các khung giờ cao điểm tại quầy cà phê khuôn viên trường học/văn phòng.
 
@@ -157,6 +157,10 @@ brewlite/
 │       ├── lib/              # Client API, hàm tiện ích, cấu hình kết nối Backend
 │       └── store/            # Quản lý trạng thái toàn cục với Zustand (Auth, Cart, Stock)
 ├── api.md                    # Tài liệu đặc tả chi tiết toàn bộ các REST API
+├── .github/
+│   └── workflows/            # Quy trình tự động hóa CI/CD (GitHub Actions)
+│       ├── ci.yml            # Tự động lint, test & build Backend/Frontend/Docker khi push PR
+│       └── cd.yml            # Tự động build & publish Docker Image lên GHCR khi merge main
 ├── docker-compose.yml        # Cấu hình khởi chạy trọn gói các dịch vụ
 └── README.md                 # Tài liệu giới thiệu và hướng dẫn đồ án
 ```
@@ -180,6 +184,21 @@ npm --prefix frontend run build
 
 ---
 
-## 📄 8. Tài liệu tham khảo
+## 🔄 8. Quy trình CI/CD (GitHub Actions)
+
+Dự án tích hợp sẵn quy trình CI/CD tự động qua GitHub Actions:
+
+1. **Continuous Integration (`ci.yml`):**
+   * Kích hoạt khi có `push` hoặc `pull_request` vào 2 nhánh `main` và `develop`.
+   * **Backend Job:** Khởi tạo container PostgreSQL 16 dịch vụ, chạy Prisma migrations, nạp seed data, chạy linter (Oxlint), chạy toàn bộ 86 Unit Tests, 11 E2E Tests và build NestJS.
+   * **Frontend Job:** Cài đặt dependencies, chạy linter (ESLint) và build ứng dụng Next.js.
+   * **Docker Check Job:** Kiểm tra tính hợp lệ của `docker-compose.yml` và build thử nghiệm các Docker containers.
+2. **Continuous Deployment (`cd.yml`):**
+   * Kích hoạt tự động khi merge vào nhánh `main`.
+   * Đóng gói Docker Images cho cả Backend và Frontend, gắn thẻ version theo commit SHA & `latest`, tự động phát hành lên **GitHub Container Registry (GHCR)**.
+
+---
+
+## 📄 9. Tài liệu tham khảo
 * Tài liệu đặc tả API chi tiết: [`api.md`](./api.md)
 * Giao diện tương tác Swagger UI: `http://localhost:4000/api/docs`
