@@ -33,6 +33,11 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
       await prisma.$queryRaw`SELECT 1`;
       isDbAvailable = true;
 
+      // Đồng bộ sequence của bảng Order đề phòng sequence bị lệch sau khi seed các ID cứng
+      await prisma.$executeRawUnsafe(
+        `SELECT setval(pg_get_serial_sequence('"Order"', 'id'), COALESCE((SELECT MAX(id) FROM "Order"), 1), (SELECT COUNT(*) > 0 FROM "Order"))`,
+      );
+
       // Chuẩn bị dữ liệu kiểm thử
       const user = await prisma.user.upsert({
         where: { email: 'concurrency-test@brewlite.vn' },
