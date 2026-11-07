@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -44,6 +45,20 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
         update: {},
       });
       testUserId = user.id;
+
+      // Xóa các đơn hàng cũ từ lượt chạy trước nếu có để đảm bảo tính cô lập
+      const oldOrders = await prisma.order.findMany({
+        where: { userId: testUserId },
+        select: { id: true },
+      });
+      const oldOrderIds = oldOrders.map((o) => o.id);
+      if (oldOrderIds.length > 0) {
+        await prisma.payment.deleteMany({ where: { orderId: { in: oldOrderIds } } });
+        await prisma.loyaltyTransaction.deleteMany({ where: { orderId: { in: oldOrderIds } } });
+        await prisma.stockMovement.deleteMany({ where: { orderId: { in: oldOrderIds } } });
+        await prisma.orderItem.deleteMany({ where: { orderId: { in: oldOrderIds } } });
+        await prisma.order.deleteMany({ where: { id: { in: oldOrderIds } } });
+      }
 
       // Tạo nguyên liệu kiểm thử với tồn kho chính xác = 5, version = 0
       const ingredient = await prisma.ingredient.upsert({

@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apk add --no-cache openssl
 
-COPY package*.json ./
+COPY package*.json .npmrc* ./
 COPY tsconfig*.json ./
 COPY nest-cli.json ./
 COPY prisma.config.ts ./
@@ -12,7 +12,7 @@ COPY prisma ./prisma
 
 ENV DATABASE_URL="postgresql://brewlite:brewlite@db:5432/brewlite"
 
-RUN npm install
+RUN npm ci
 
 COPY src ./src
 

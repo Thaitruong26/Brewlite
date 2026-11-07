@@ -97,7 +97,7 @@ describe('OrdersService', () => {
         },
       ]);
       prismaMock.topping.findMany.mockResolvedValue([]);
-      prismaMock.ingredient.findUnique.mockImplementation(async ({ where }) => {
+      prismaMock.ingredient.findUnique.mockImplementation(async ({ where }: any) => {
         if (where.id === 10) return { id: 10, name: 'Cà phê', stock: 1000, version: 0 };
         return null;
       });
