@@ -399,6 +399,11 @@ async function main() {
         total: 80000,
       },
     });
+
+    // Đồng bộ lại PostgreSQL sequence của bảng Order để các đơn tạo mới không bị lỗi P2002 duplicate key
+    await prisma.$executeRawUnsafe(
+      `SELECT setval(pg_get_serial_sequence('"Order"', 'id'), COALESCE((SELECT MAX(id) FROM "Order"), 1), (SELECT COUNT(*) > 0 FROM "Order"))`,
+    );
   }
 
   console.log(
