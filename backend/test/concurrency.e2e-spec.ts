@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AppModule } from '../src/app.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { OrdersService } from '../src/orders/orders.service.js';
-import { Size } from '../src/generated/prisma/client.js';
+import { IngredientUnit, Role, Size } from '../src/generated/prisma/enums.js';
 
 describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu thật (PostgreSQL Concurrency Test)', () => {
   let app: INestApplication;
@@ -39,7 +39,7 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
           email: 'concurrency-test@brewlite.vn',
           passwordHash: '$2b$10$abcdefghijklmnopqrstuv',
           fullName: 'Concurrency Test User',
-          role: 'CUSTOMER',
+          role: Role.CUSTOMER,
         },
         update: {},
       });
@@ -50,9 +50,9 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
         where: { name: 'Nguyên Liệu Test Đồng Thời' },
         create: {
           name: 'Nguyên Liệu Test Đồng Thời',
-          unit: 'g',
+          unit: IngredientUnit.G,
           stock: 5,
-          minThreshold: 1,
+          lowThreshold: 1,
           version: 0,
         },
         update: {
@@ -73,6 +73,7 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
         create: {
           name: 'Món Test Đồng Thời Concurrency',
           price: 35000,
+          imageUrl: '/img/tra-sua-truyen-thong.jpg',
           category: 'Trà',
           isActive: true,
           productRecipes: {
@@ -111,7 +112,20 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
   afterAll(async () => {
     if (isDbAvailable && prisma) {
       try {
-        // Dọn dẹp dữ liệu kiểm thử
+        if (testUserId) {
+          const userOrders = await prisma.order.findMany({
+            where: { userId: testUserId },
+            select: { id: true },
+          });
+          const orderIds = userOrders.map((o) => o.id);
+          if (orderIds.length > 0) {
+            await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
+            await prisma.loyaltyTransaction.deleteMany({ where: { orderId: { in: orderIds } } });
+            await prisma.stockMovement.deleteMany({ where: { orderId: { in: orderIds } } });
+            await prisma.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+            await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+          }
+        }
         if (testIngredientId) {
           await prisma.stockMovement.deleteMany({ where: { ingredientId: testIngredientId } });
         }
@@ -124,7 +138,6 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
           await prisma.ingredient.delete({ where: { id: testIngredientId } }).catch(() => {});
         }
         if (testUserId) {
-          await prisma.order.deleteMany({ where: { userId: testUserId } });
           await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
         }
       } catch {}
@@ -194,3 +207,4 @@ describe('Kiểm thử đặt hàng đồng thời trên Cơ sở dữ liệu th
     expect(totalDeducted).toBe(-5);
   });
 });
+
