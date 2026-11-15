@@ -52,7 +52,7 @@ Client (Next.js App Router) ──[REST API / JWT]──> Controller (NestJS) �
 ### 3.1. Phân hệ Khách hàng (Customer Web Portal)
 * **Thực đơn trực quan & Đa dạng:** 20 món đồ uống tiêu chuẩn chia thành các nhóm (Trà sữa, Trà trái cây, Trà nguyên vị, Matcha, Cà phê đặc biệt).
 * **Tùy biến món linh hoạt:** Chọn kích cỡ (Size S / M / L) và lựa chọn thêm topping (Trân châu đen, Trân châu đường đen, Thạch củ năng, Kem cheese...) kèm ghi chú đặc biệt cho barista.
-* **Giỏ hàng & Khuyến mãi:** Tự động tính toán giá tiền, hỗ trợ áp dụng mã giảm giá (Promo Code) và dùng điểm tích lũy thành viên (Loyalty Points) giảm trực tiếp vào hóa đơn.
+* **Giỏ hàng & Khuyến mãi:** Tự động tính toán giá tiền, hỗ trợ áp dụng mã giảm giá (Promo Code) và dùng điểm tích lũy thành viên (Loyalty Points) giảm trực tiếp vào hóa đơn. Cơ chế cô lập giỏ hàng tự động làm sạch khi người dùng đăng xuất, đảm bảo tính riêng tư giữa các tài khoản khác nhau.
 * **Thanh toán MoMo QR tiện lợi:** Sinh mã QR thanh toán động kèm mã đơn hàng, bộ đếm ngược 15 phút, tự động hủy nếu quá hạn và tự động chuyển màn hình lấy nước ngay khi Barista xác nhận.
 * **Theo dõi đơn hàng:** Xem trạng thái đơn từ lúc chờ thanh toán, đang pha chế đến khi sẵn sàng nhận nước.
 
