@@ -279,6 +279,8 @@ export default function MenuPage() {
   const query = useQuery({
     queryKey: ["products", { category, page: 1, limit: 20 }],
     queryFn: () => getProducts({ category: category || undefined, page: 1, limit: 20 }),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     enabled: !showFixtures,
   });
 

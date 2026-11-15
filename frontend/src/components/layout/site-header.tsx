@@ -37,7 +37,7 @@ function SiteHeaderContent() {
             const token = getAccessToken();
             if (token) {
               saveSession(token, fresh);
-              useAuthStore.getState().setSession(token, fresh);
+              useAuthStore.setState({ user: fresh });
             }
           }
         })

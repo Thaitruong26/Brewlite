@@ -59,7 +59,11 @@ export function CancelOrder({ order, disabled, compact = false, onRefresh, onCan
           <p className="text-sm font-bold text-[var(--forest-hover)]">Hãy kiểm tra trước khi xác nhận</p>
           <p>Đơn hàng sẽ ngừng xử lý. Bạn không thể khôi phục đơn sau khi hủy.</p>
           <p>Tổng thanh toán<br /><strong>{formatVND(order.total)}</strong></p>
-          {order.status === "PAID" && <p className="text-sm text-[var(--muted)]">Đơn đã thanh toán: hệ thống sẽ ghi nhận hoàn tiền giả lập và thu hồi điểm thưởng của đơn.</p>}
+          {order.status === "PAID" ? (
+            <p className="text-sm text-[var(--muted)]">Đơn đã thanh toán: hệ thống sẽ ghi nhận hoàn tiền và thu hồi điểm thưởng của đơn.</p>
+          ) : (
+            <p className="text-sm text-[var(--muted)]">Đơn chưa thanh toán: hệ thống sẽ hủy đơn ngay lập tức và hoàn kho nguyên liệu (không phát sinh hoàn tiền).</p>
+          )}
           {!canCancel && <p role="alert" className="text-sm text-red-700">Đơn hiện không thể hủy. Hãy quay lại để xem trạng thái mới nhất.</p>}
           {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{message}</p>}
           <button autoFocus type="button" disabled={pending} onClick={() => dialog.current?.close()} className="min-h-12 w-full rounded-xl bg-[var(--forest)] p-3 text-white disabled:opacity-50">Giữ đơn</button>
