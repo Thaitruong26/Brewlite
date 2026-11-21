@@ -18,7 +18,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 
-@ApiTags('payments')
+@ApiTags('Payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('payments')

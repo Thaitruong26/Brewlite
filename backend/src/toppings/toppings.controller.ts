@@ -22,7 +22,7 @@ import { Roles } from '../auth/decorators/roles.decorator.js';
 import { Role } from '../generated/prisma/client.js';
 import { UpdateRecipeDto } from '../ingredients/dto/update-recipe.dto.js';
 
-@ApiTags('toppings')
+@ApiTags('Toppings')
 @Controller('toppings')
 export class ToppingsController {
   constructor(
