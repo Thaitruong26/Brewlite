@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PromotionsService } from './promotions.service.js';
 import { ValidatePromotionDto } from './dto/validate-promotion.dto.js';
 
-@ApiTags('promotions')
+@ApiTags('Promotions')
 @Controller('promotions')
 export class PromotionsController {
   constructor(private readonly promotionsService: PromotionsService) {}

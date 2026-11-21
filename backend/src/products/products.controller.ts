@@ -24,7 +24,7 @@ import { Role } from '../generated/prisma/client.js';
 import { IngredientsService } from '../ingredients/ingredients.service.js';
 import { UpdateRecipeDto } from '../ingredients/dto/update-recipe.dto.js';
 
-@ApiTags('products')
+@ApiTags('Products')
 @Controller('products')
 export class ProductsController {
   constructor(
