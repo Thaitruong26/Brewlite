@@ -55,18 +55,15 @@ describe('Swagger Documentation & Postman Export', () => {
       fs.mkdirSync(postmanDir, { recursive: true });
     }
 
-    // Save swagger openapi spec
     const swaggerJsonContent = JSON.stringify(document, null, 2);
     fs.writeFileSync(path.join(postmanDir, 'brewlite-api.swagger.json'), swaggerJsonContent, 'utf-8');
     console.log(`Saved OpenAPI JSON to backend/postman/`);
 
-    // Generate Postman Collection v2.1
     const postmanCollection = generatePostmanCollection(document);
     const postmanJsonContent = JSON.stringify(postmanCollection, null, 2);
     fs.writeFileSync(path.join(postmanDir, 'BrewLite_API.postman_collection.json'), postmanJsonContent, 'utf-8');
     console.log(`Saved Postman Collection to backend/postman/`);
 
-    // Generate Environments
     const localEnv = {
       id: 'brewlite-a1-local-environment',
       name: 'BrewLite A1 Local',
@@ -108,7 +105,7 @@ function generatePostmanCollection(openapi: any) {
     info: {
       name: 'BrewLite A1 API - Postman Collection',
       description:
-        'Bộ sưu tập đầy đủ 26 API cho dự án BrewLite Assignment 1. Hỗ trợ biến môi trường baseUrl, tự động lưu JWT token khi đăng nhập và tự sinh idempotency-key.',
+        'Bộ sưu tập 26 API chuẩn 1:1 theo Swagger UI BrewLite Assignment 1. Hỗ trợ biến môi trường baseUrl, tự động lưu JWT token khi đăng nhập và tự sinh idempotency-key.',
       schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
     },
     variable: [
@@ -126,11 +123,65 @@ function generatePostmanCollection(openapi: any) {
     item: [],
   };
 
+  const TAG_ORDER = [
+    'Auth',
+    'Products',
+    'Toppings',
+    'Ingredients',
+    'Orders',
+    'Payments',
+    'Promotions',
+    'Health',
+    'App',
+  ];
+
+  const TAG_META: Record<string, { title: string; desc: string }> = {
+    Auth: {
+      title: '1. Auth',
+      desc: 'Đăng ký, đăng nhập và xác thực người dùng',
+    },
+    Products: {
+      title: '2. Products',
+      desc: 'Quản lý danh mục thực đơn và công thức pha chế sản phẩm',
+    },
+    Toppings: {
+      title: '3. Toppings',
+      desc: 'Quản lý danh sách và định lượng nguyên liệu topping',
+    },
+    Ingredients: {
+      title: '4. Ingredients',
+      desc: 'Quản lý kho nguyên vật liệu, cảnh báo tồn kho và lịch sử biến động',
+    },
+    Orders: {
+      title: '5. Orders',
+      desc: 'Đặt hàng, xem danh sách và cập nhật trạng thái đơn',
+    },
+    Payments: {
+      title: '6. Payments',
+      desc: 'Thanh toán trực tiếp hỗ trợ Idempotency Key',
+    },
+    Promotions: {
+      title: '7. Promotions',
+      desc: 'Kiểm tra và áp dụng mã voucher giảm giá',
+    },
+    Health: {
+      title: '8. Health',
+      desc: 'Kiểm tra trạng thái máy chủ và kết nối CSDL (Health Check)',
+    },
+    App: {
+      title: '9. App',
+      desc: 'Kiểm tra hoạt động dịch vụ gốc (Root API)',
+    },
+  };
+
   const tagGroups: Record<string, any[]> = {};
+  for (const tag of TAG_ORDER) {
+    tagGroups[tag] = [];
+  }
 
   for (const [routePath, methods] of Object.entries<any>(openapi.paths)) {
     for (const [httpMethod, op] of Object.entries<any>(methods)) {
-      const tag = op.tags?.[0] || 'Default';
+      const tag = op.tags?.[0] || 'App';
       if (!tagGroups[tag]) {
         tagGroups[tag] = [];
       }
@@ -178,14 +229,20 @@ function generatePostmanCollection(openapi: any) {
       ];
 
       const hasBearer = op.security && op.security.some((s: any) => 'bearer' in s);
-      if (hasBearer) {
-        headers.push({
-          key: 'Authorization',
-          value: 'Bearer {{accessToken}}',
-          type: 'text',
-          description: 'Access token tự động cập nhật sau khi gọi Auth Login',
-        });
-      }
+      const authConfig: any = hasBearer
+        ? {
+            type: 'bearer',
+            bearer: [
+              {
+                key: 'token',
+                value: '{{accessToken}}',
+                type: 'string',
+              },
+            ],
+          }
+        : {
+            type: 'noauth',
+          };
 
       if (routePath.includes('payments') || routePath.includes('orders')) {
         headers.push({
@@ -281,10 +338,16 @@ function generatePostmanCollection(openapi: any) {
         });
       }
 
+      const fullDisplayRoute = routePath.startsWith('/') ? routePath : `/${routePath}`;
+      const requestName = op.summary
+        ? `${fullDisplayRoute} ${op.summary}`
+        : fullDisplayRoute;
+
       const requestItem: any = {
-        name: `${httpMethod.toUpperCase()} ${op.summary || cleanPath}`,
+        name: requestName,
         request: {
           method: httpMethod.toUpperCase(),
+          auth: authConfig,
           header: headers,
           url: urlObj,
           description: op.description || op.summary || '',
@@ -303,11 +366,15 @@ function generatePostmanCollection(openapi: any) {
     }
   }
 
-  for (const [tag, items] of Object.entries(tagGroups)) {
-    collection.item.push({
-      name: `${tag} Module`,
-      item: items,
-    });
+  for (const tag of TAG_ORDER) {
+    const items = tagGroups[tag];
+    if (items && items.length > 0) {
+      const meta = TAG_META[tag] || { title: tag, desc: '' };
+      collection.item.push({
+        name: `${meta.title} (${meta.desc})`,
+        item: items,
+      });
+    }
   }
 
   return collection;
