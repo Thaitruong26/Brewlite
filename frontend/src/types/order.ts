@@ -9,7 +9,7 @@ export type OrderStatus =
   | "PAYMENT_FAILED"
   | "CANCELLED";
 
-export type PaymentMethod = "WALLET" | "CARD";
+export type PaymentMethod = "WALLET" | "CARD" | "VNPAY";
 
 export type PaymentStatus = "PROCESSING" | "SUCCESS" | "FAILED";
 

@@ -976,6 +976,130 @@
         ]
       }
     },
+    "/api/payments/vnpay/create-url": {
+      "post": {
+        "operationId": "PaymentsController_createVnpayUrl",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderId": {
+                    "type": "number",
+                    "example": 10,
+                    "description": "ID của đơn hàng cần thanh toán"
+                  }
+                },
+                "required": [
+                  "orderId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Tạo URL thanh toán VNPay Sandbox (ADR-004)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/vnpay/simulate-complete": {
+      "post": {
+        "operationId": "PaymentsController_simulateComplete",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "orderId": {
+                    "type": "number",
+                    "example": 10
+                  },
+                  "txnRef": {
+                    "type": "string",
+                    "example": "10_1700000000"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 5000000
+                  },
+                  "responseCode": {
+                    "type": "string",
+                    "example": "00",
+                    "default": "00"
+                  }
+                },
+                "required": [
+                  "orderId",
+                  "txnRef",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Tạo query callback ký HMAC-SHA512 từ Simulator (Chỉ dành cho môi trường thử nghiệm)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/vnpay/verify": {
+      "get": {
+        "operationId": "PaymentsController_verifyVnpay",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Xác thực kết quả thanh toán từ VNPay (Return URL hiển thị kết quả cho khách)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
+    "/api/payments/vnpay/ipn": {
+      "get": {
+        "operationId": "PaymentsController_vnpayIpn",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Xử lý IPN từ server VNPay (Server-to-Server webhook)",
+        "tags": [
+          "Payments"
+        ]
+      }
+    },
     "/api/promotions/validate": {
       "post": {
         "operationId": "PromotionsController_validate",
