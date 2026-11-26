@@ -1176,6 +1176,186 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/create-url Tạo URL thanh toán VNPay Sandbox (ADR-004)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/create-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "create-url"
+              ],
+              "variable": []
+            },
+            "description": "Tạo URL thanh toán VNPay Sandbox (ADR-004)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1,\n  \"paymentMethod\": \"CASH\",\n  \"amount\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/simulate-complete Tạo query callback ký HMAC-SHA512 từ Simulator (Chỉ dành cho môi trường thử nghiệm)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/simulate-complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "simulate-complete"
+              ],
+              "variable": []
+            },
+            "description": "Tạo query callback ký HMAC-SHA512 từ Simulator (Chỉ dành cho môi trường thử nghiệm)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1,\n  \"paymentMethod\": \"CASH\",\n  \"amount\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/verify Xác thực kết quả thanh toán từ VNPay (Return URL hiển thị kết quả cho khách)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "verify"
+              ],
+              "variable": []
+            },
+            "description": "Xác thực kết quả thanh toán từ VNPay (Return URL hiển thị kết quả cho khách)"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/ipn Xử lý IPN từ server VNPay (Server-to-Server webhook)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/ipn",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "ipn"
+              ],
+              "variable": []
+            },
+            "description": "Xử lý IPN từ server VNPay (Server-to-Server webhook)"
+          },
+          "response": []
         }
       ]
     },

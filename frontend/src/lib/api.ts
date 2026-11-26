@@ -351,3 +351,60 @@ export async function cancelOrderApi(
   });
   return data;
 }
+
+
+/**
+ * POST /payments/vnpay/create-url - Tạo liên kết thanh toán VNPay Sandbox (ADR-004)
+ */
+export async function createVnpayUrlApi(orderId: number): Promise<{
+  paymentUrl: string;
+  simulatorUrl?: string;
+}> {
+  const { data } = await apiRequest<{ paymentUrl: string; simulatorUrl?: string }>(
+    "/payments/vnpay/create-url",
+    {
+      method: "POST",
+      body: JSON.stringify({ orderId }),
+    },
+  );
+  return data;
+}
+
+/**
+ * POST /payments/vnpay/simulate-complete - Ký query trả về từ VNPay Simulator
+ */
+export async function simulateVnpayCompleteApi(
+  orderId: number,
+  txnRef: string,
+  amount: number,
+  responseCode: string = "00",
+): Promise<{ query: string }> {
+  const { data } = await apiRequest<{ query: string }>(
+    "/payments/vnpay/simulate-complete",
+    {
+      method: "POST",
+      body: JSON.stringify({ orderId, txnRef, amount, responseCode }),
+    },
+  );
+  return data;
+}
+
+/**
+ * GET /payments/vnpay/verify - Xác thực kết quả trả về từ cổng VNPay
+ */
+export async function verifyVnpayCallbackApi(
+  queryParams: Record<string, string>,
+): Promise<{
+  isSuccess: boolean;
+  orderId: number;
+  amount: number;
+  responseCode: string;
+  message: string;
+  transactionNo?: string;
+}> {
+  const qs = new URLSearchParams(queryParams).toString();
+  const { data } = await apiRequest<any>(`/payments/vnpay/verify?${qs}`, {
+    method: "GET",
+  });
+  return data;
+}

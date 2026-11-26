@@ -9,6 +9,7 @@ import {
   ApiError,
   createOrderApi,
   createPaymentApi,
+  createVnpayUrlApi,
   formatVND,
   getAccessToken,
   saveSession,
@@ -170,6 +171,20 @@ export default function CheckoutPage() {
           }
         } catch {}
         queryClient.invalidateQueries({ queryKey: ["me"] });
+      }
+
+      // Nếu chọn Cổng VNPay Sandbox:
+      if (paymentMethod === "VNPAY") {
+        setStepStatus("PROCESSING_PAYMENT");
+        const { paymentUrl } = await createVnpayUrlApi(orderToPay.id);
+
+        if (!paymentUrl) {
+          throw new Error("Không tạo được URL thanh toán VNPay");
+        }
+
+        clearCart();
+        window.location.assign(paymentUrl);
+        return;
       }
 
       // Nếu chọn Ví điện tử / Quét mã QR MoMo:
@@ -487,8 +502,48 @@ export default function CheckoutPage() {
                   </span>
                 </div>
 
-                {/* Chọn Ví điện tử (WALLET) hoặc Thẻ ngân hàng (CARD) */}
+                {/* Chọn Phương thức thanh toán */}
                 <div className="space-y-3" role="radiogroup" aria-label="Phương thức thanh toán">
+                  <label
+                    onClick={() => handleSelectMethod("VNPAY")}
+                    className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                      paymentMethod === "VNPAY"
+                        ? "border-emerald-800 bg-emerald-50/60"
+                        : "border-stone-200 hover:border-stone-300 bg-white"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="VNPAY"
+                      checked={paymentMethod === "VNPAY"}
+                      onChange={() => handleSelectMethod("VNPAY")}
+                      className="mt-1 accent-emerald-800"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-stone-900 flex items-center gap-1.5 flex-wrap">
+                          VNPay Sandbox
+                          <span className="text-[10px] font-bold bg-emerald-800 text-white px-2 py-0.5 rounded-full shrink-0">
+                            Cổng trực tuyến
+                          </span>
+                        </span>
+                        <span className="text-xl">🏦</span>
+                      </div>
+                      <p className="text-xs text-stone-600 mt-1">
+                        Cổng thanh toán quốc dân: Quét mã QR ngân hàng hoặc thẻ ATM nội địa NCB.
+                      </p>
+                      {paymentMethod === "VNPAY" && (
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-emerald-100/70 text-[11px] text-emerald-950 border border-emerald-200 space-y-1">
+                          <p className="font-bold">💳 Thông tin thẻ thử nghiệm (Ngân hàng NCB):</p>
+                          <p>Số thẻ: <span className="font-mono font-bold">9704198526191432198</span></p>
+                          <p>Tên chủ thẻ: <span className="font-bold">NGUYEN VAN A</span> | Ngày phát hành: <span className="font-bold">07/15</span></p>
+                          <p>Mã OTP xác thực: <span className="font-mono font-bold">123456</span></p>
+                        </div>
+                      )}
+                    </div>
+                  </label>
+
                   <label
                     onClick={() => handleSelectMethod("WALLET")}
                     className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
@@ -753,7 +808,11 @@ export default function CheckoutPage() {
                   ) : (
                     <>
                       <span>
-                        {paymentMethod === "WALLET" ? "Quét mã QR chuyển khoản" : "Xác nhận trả"}
+                        {paymentMethod === "VNPAY"
+                          ? "Thanh toán qua VNPay"
+                          : paymentMethod === "WALLET"
+                            ? "Quét mã QR chuyển khoản"
+                            : "Xác nhận trả"}
                       </span>
                       <span>•</span>
                       <span>{formatVND(displayTotal)}</span>
