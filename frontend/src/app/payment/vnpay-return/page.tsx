@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { formatVND, verifyVnpayCallbackApi } from "@/lib/api";
+import { API_BASE_URL, formatVND, verifyVnpayCallbackApi } from "@/lib/api";
 
 function VnpayReturnContent() {
   const searchParams = useSearchParams();
@@ -36,7 +36,18 @@ function VnpayReturnContent() {
     }
 
     verifyVnpayCallbackApi(params)
-      .then((res) => {
+      .then(async (res) => {
+        if (res.isSuccess) {
+          // Đồng bộ IPN dự phòng khi chạy Localhost / Sandbox (VNPay không thể gọi webhook vào localhost)
+          try {
+            const qs = new URLSearchParams(params).toString();
+            await fetch(`${API_BASE_URL}/payments/vnpay/ipn?${qs}`, {
+              cache: "no-store",
+            });
+          } catch {
+            // Idempotent: bỏ qua nếu server IPN đã xử lý trước đó
+          }
+        }
         setResult(res);
       })
       .catch((err) => {
