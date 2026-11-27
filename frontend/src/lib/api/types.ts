@@ -20,6 +20,7 @@ export interface PaginatedResponse<T> {
 export interface Product {
   id: number;
   name: string;
+  description?: string | null;
   price: number;
   imageUrl: string;
   category: string;
@@ -31,7 +32,7 @@ export interface User {
   id: number;
   email: string;
   fullName: string;
-  role: "CUSTOMER" | "BARISTA";
+  role: "CUSTOMER" | "BARISTA" | "MANAGER";
   loyaltyPoints: number;
 }
 

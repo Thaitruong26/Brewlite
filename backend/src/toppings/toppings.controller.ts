@@ -30,7 +30,7 @@ export class ToppingsController {
     private readonly ingredientsService: IngredientsService,
   ) {}
 
-  /** GET /api/toppings */
+  // Chức năng: Lấy danh sách topping đang mở bán. Cách hoạt động: Gọi ToppingsService.findAll() trả về các topping có isActive: true.
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách topping đang kích hoạt' })
   @ApiResponse({ status: 200, description: 'Danh sách topping thành công' })
@@ -38,10 +38,10 @@ export class ToppingsController {
     return this.toppingsService.findAll();
   }
 
-  /** 4.8. GET /api/toppings/:id/recipe (Barista) */
+  // Chức năng: Xem công thức định lượng của 1 phần topping. Cách hoạt động: Chỉ cho phép Barista/Manager, gọi IngredientsService.getToppingRecipe(id).
   @Get(':id/recipe')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Lấy công thức topping cho 1 phần (Barista)' })
   @ApiParam({ name: 'id', description: 'ID topping', example: 1 })
@@ -53,10 +53,10 @@ export class ToppingsController {
     return this.ingredientsService.getToppingRecipe(id);
   }
 
-  /** 4.8. PUT /api/toppings/:id/recipe (Barista) */
+  // Chức năng: Cập nhật công thức nguyên liệu cho topping. Cách hoạt động: Chỉ cho phép Barista/Manager, gọi IngredientsService.updateToppingRecipe(id, dto).
   @Put(':id/recipe')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cập nhật công thức topping cho 1 phần (Barista)' })
   @ApiParam({ name: 'id', description: 'ID topping', example: 1 })

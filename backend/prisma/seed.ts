@@ -8,7 +8,7 @@ import { PrismaClient } from '../src/generated/prisma/client.js';
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
-// Ảnh nằm trong frontend/public/img/<tên>.jpg
+// Ảnh nằm trong apps/web/public/img/<tên>.jpg
 const products = [
   // Nhóm 1 — Trà sữa (6 món)
   { name: 'Trà Sữa Truyền Thống', price: 35000, category: 'Trà sữa', imageUrl: '/img/tra-sua-truyen-thong.jpg', description: 'Trà đen đậm đà kết hợp sữa thơm béo' },
@@ -55,40 +55,40 @@ const toppings = [
 ];
 
 const ingredientsData: { name: string; unit: 'G' | 'ML' | 'PCS'; stock: number; lowThreshold: number }[] = [
-  { name: 'Cốt trà đen đã pha', unit: 'ML', stock: 20000, lowThreshold: 2000 },
-  { name: 'Cốt trà ô long đã pha', unit: 'ML', stock: 20000, lowThreshold: 2000 },
-  { name: 'Cốt trà xanh đã pha', unit: 'ML', stock: 10000, lowThreshold: 2000 },
-  { name: 'Cốt trà hoa nhài đã pha', unit: 'ML', stock: 15000, lowThreshold: 1500 },
-  { name: 'Sữa tươi', unit: 'ML', stock: 30000, lowThreshold: 3000 },
-  { name: 'Bột kem béo', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Sữa đặc', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Đường nước / syrup đường', unit: 'ML', stock: 10000, lowThreshold: 1000 },
-  { name: 'Bột khoai môn', unit: 'G', stock: 3000, lowThreshold: 300 },
-  { name: 'Bánh Oreo nghiền', unit: 'G', stock: 3000, lowThreshold: 300 },
-  { name: 'Kem cheese', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Trân châu đen đã nấu', unit: 'G', stock: 10000, lowThreshold: 1000 },
-  { name: 'Trân châu đường đen đã nấu', unit: 'G', stock: 8000, lowThreshold: 800 },
-  { name: 'Syrup đường đen', unit: 'ML', stock: 5000, lowThreshold: 500 },
-  { name: 'Đào ngâm', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Cam tươi', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Sả', unit: 'G', stock: 2000, lowThreshold: 200 },
-  { name: 'Vải ngâm', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Syrup chanh dây', unit: 'ML', stock: 5000, lowThreshold: 500 },
-  { name: 'Dâu tây / puree dâu', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Xoài / puree xoài', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Bột matcha', unit: 'G', stock: 2000, lowThreshold: 200 },
-  { name: 'Đậu đỏ đã nấu', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Cà phê espresso/phin đã pha', unit: 'ML', stock: 10000, lowThreshold: 1000 },
-  { name: 'Muối', unit: 'G', stock: 5, lowThreshold: 100 }, // Đúng 5g -> Cà phê muối (1g/ly) chỉ làm được đúng 5 ly size M!
-  { name: 'Kem nền / whipping cream', unit: 'ML', stock: 5000, lowThreshold: 500 },
-  { name: 'Thạch củ năng đã chuẩn bị', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Thạch đen đã chuẩn bị', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Trân châu popping', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Thạch dừa', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Pudding trứng', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Mứt dâu', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Mứt xoài', unit: 'G', stock: 5000, lowThreshold: 500 },
-  { name: 'Nước lọc', unit: 'ML', stock: 50000, lowThreshold: 5000 },
+  { name: 'Cốt trà đen đã pha', unit: 'ML', stock: 1800, lowThreshold: 300 },
+  { name: 'Cốt trà ô long đã pha', unit: 'ML', stock: 1600, lowThreshold: 300 },
+  { name: 'Cốt trà xanh đã pha', unit: 'ML', stock: 1200, lowThreshold: 200 },
+  { name: 'Cốt trà hoa nhài đã pha', unit: 'ML', stock: 1400, lowThreshold: 200 },
+  { name: 'Sữa tươi', unit: 'ML', stock: 2000, lowThreshold: 400 },
+  { name: 'Bột kem béo', unit: 'G', stock: 500, lowThreshold: 100 },
+  { name: 'Sữa đặc', unit: 'G', stock: 580, lowThreshold: 120 },
+  { name: 'Đường nước / syrup đường', unit: 'ML', stock: 1000, lowThreshold: 200 },
+  { name: 'Bột khoai môn', unit: 'G', stock: 400, lowThreshold: 100 },
+  { name: 'Bánh Oreo nghiền', unit: 'G', stock: 350, lowThreshold: 80 },
+  { name: 'Kem cheese', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Trân châu đen đã nấu', unit: 'G', stock: 800, lowThreshold: 200 },
+  { name: 'Trân châu đường đen đã nấu', unit: 'G', stock: 650, lowThreshold: 150 },
+  { name: 'Syrup đường đen', unit: 'ML', stock: 400, lowThreshold: 100 },
+  { name: 'Đào ngâm', unit: 'G', stock: 500, lowThreshold: 100 },
+  { name: 'Cam tươi', unit: 'G', stock: 400, lowThreshold: 100 },
+  { name: 'Sả', unit: 'G', stock: 200, lowThreshold: 50 },
+  { name: 'Vải ngâm', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Syrup chanh dây', unit: 'ML', stock: 400, lowThreshold: 100 },
+  { name: 'Dâu tây / puree dâu', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Xoài / puree xoài', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Bột matcha', unit: 'G', stock: 250, lowThreshold: 50 },
+  { name: 'Đậu đỏ đã nấu', unit: 'G', stock: 400, lowThreshold: 100 },
+  { name: 'Cà phê espresso/phin đã pha', unit: 'ML', stock: 850, lowThreshold: 150 },
+  { name: 'Muối', unit: 'G', stock: 5, lowThreshold: 20 }, // Đúng 5g -> Cà phê muối (1g/ly) chỉ làm được đúng 5 ly size M!
+  { name: 'Kem nền / whipping cream', unit: 'ML', stock: 420, lowThreshold: 100 },
+  { name: 'Thạch củ năng đã chuẩn bị', unit: 'G', stock: 500, lowThreshold: 100 },
+  { name: 'Thạch đen đã chuẩn bị', unit: 'G', stock: 500, lowThreshold: 100 },
+  { name: 'Trân châu popping', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Thạch dừa', unit: 'G', stock: 500, lowThreshold: 100 },
+  { name: 'Pudding trứng', unit: 'G', stock: 450, lowThreshold: 100 },
+  { name: 'Mứt dâu', unit: 'G', stock: 400, lowThreshold: 100 },
+  { name: 'Mứt xoài', unit: 'G', stock: 400, lowThreshold: 100 },
+  { name: 'Nước lọc', unit: 'ML', stock: 3000, lowThreshold: 500 },
 ];
 
 const productRecipeDefinitions: Record<string, { ingredient: string; quantity: number }[]> = {
@@ -292,6 +292,7 @@ async function main() {
   const users = [
     { email: 'demo@brewlite.com', fullName: 'Khách Demo', password: 'Demo@1234', role: 'CUSTOMER' as const },
     { email: 'barista@brewlite.com', fullName: 'Barista Demo', password: 'Barista@123', role: 'BARISTA' as const },
+    { email: 'manager@brewlite.com', fullName: 'Quản Lý Kho', password: 'Manager@123', role: 'MANAGER' as const },
   ];
   for (const u of users) {
     const passwordHash = await bcrypt.hash(u.password, 10);

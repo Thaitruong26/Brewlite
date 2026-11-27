@@ -30,6 +30,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-brewlite-secret-key-change-in-production}
       JWT_EXPIRES_IN: "1d"
       CORS_ORIGIN: "http://localhost:3000,http://localhost:3001"
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-XEIZJE1O}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-VICYVWQDHKKEXUSYFEBYIRJHITKXJBET}
+      VNPAY_URL: ${VNPAY_URL:-https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost:3000/payment/vnpay-return}
+      ALLOW_VNPAY_SIMULATOR: ${ALLOW_VNPAY_SIMULATOR:-true}
     ports:
       - "4000:4000"
     depends_on:

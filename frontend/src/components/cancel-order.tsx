@@ -12,6 +12,7 @@ type Props = {
   onCancelled?: () => void;
 };
 
+// Chức năng: Component giao diện CancelOrder. Cách hoạt động: Quản lý trạng thái hiển thị bằng React hooks và render cấu trúc JSX tương ứng.
 export function CancelOrder({ order, disabled, compact = false, onRefresh, onCancelled }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -19,18 +20,39 @@ export function CancelOrder({ order, disabled, compact = false, onRefresh, onCan
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [cancelled, setCancelled] = useState(false);
+  const [bank, setBank] = useState("MB");
+  const [account, setAccount] = useState("");
   const cache = useQueryClient();
   const allowed = ["PENDING", "PAYMENT_FAILED", "PAID"].includes(order.status);
   const processing = order.payments?.some((p) => p.status === "PROCESSING");
   const canCancel = allowed && !processing && !disabled && !cancelled;
 
+  // Chức năng: Hàm confirm. Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   async function confirm() {
     if (busy.current || !canCancel) return;
+    if (order.status === "PAID" && !account.trim()) {
+      setMessage("Vui lòng nhập số tài khoản ngân hàng để Barista hoàn tiền VietQR.");
+      return;
+    }
     busy.current = true;
     setPending(true);
     setMessage("");
     try {
-      await apiRequest(`/orders/${order.id}/cancel`, { method: "POST" });
+      if (order.status === "PAID" && account && typeof window !== "undefined") {
+        localStorage.setItem(`refund_account_${order.id}`, account);
+        localStorage.setItem(`refund_bank_${order.id}`, bank);
+      }
+      await apiRequest(`/orders/${order.id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify(
+          order.status === "PAID"
+            ? {
+                refundBank: bank,
+                refundAccount: account.trim(),
+              }
+            : {},
+        ),
+      });
       setCancelled(true);
       dialog.current?.close();
       onCancelled?.();
@@ -60,9 +82,38 @@ export function CancelOrder({ order, disabled, compact = false, onRefresh, onCan
           <p>Đơn hàng sẽ ngừng xử lý. Bạn không thể khôi phục đơn sau khi hủy.</p>
           <p>Tổng thanh toán<br /><strong>{formatVND(order.total)}</strong></p>
           {order.status === "PAID" ? (
-            <p className="text-sm text-[var(--muted)]">Đơn đã thanh toán: hệ thống sẽ ghi nhận hoàn tiền và thu hồi điểm thưởng của đơn.</p>
+            <div className="space-y-2 rounded-xl bg-amber-50/70 border border-amber-200 p-3 text-left">
+              <p className="text-xs font-bold text-amber-900">Thông tin nhận hoàn tiền (Để Barista quét mã VietQR chuyển trả lại):</p>
+              <div className="grid grid-cols-1 gap-2">
+                <select
+                  value={bank}
+                  onChange={(e) => setBank(e.target.value)}
+                  className="w-full rounded-lg border border-amber-300 bg-white p-2 text-xs font-semibold"
+                >
+                  <option value="MB">MB Bank (Quân Đội)</option>
+                  <option value="VCB">Vietcombank</option>
+                  <option value="TCB">Techcombank</option>
+                  <option value="TPB">TPBank</option>
+                  <option value="VPB">VPBank</option>
+                  <option value="ACB">ACB</option>
+                  <option value="ICB">VietinBank</option>
+                  <option value="BIDV">BIDV</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Nhập số tài khoản ngân hàng của bạn..."
+                  value={account}
+                  onChange={(e) => setAccount(e.target.value)}
+                  className="w-full rounded-lg border border-amber-300 bg-white p-2 text-xs font-semibold"
+                  required
+                />
+              </div>
+              <p className="text-xs text-[var(--muted)]">Đơn đã thanh toán: hệ thống sẽ tạo yêu cầu hoàn tiền chuyển khoản VietQR cho Barista và thu hồi điểm thưởng đã tích.</p>
+            </div>
           ) : (
-            <p className="text-sm text-[var(--muted)]">Đơn chưa thanh toán: hệ thống sẽ hủy đơn ngay lập tức và hoàn kho nguyên liệu (không phát sinh hoàn tiền).</p>
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-left text-xs text-[var(--muted)]">
+              Đơn chưa thanh toán: hệ thống sẽ hủy đơn ngay lập tức và hoàn kho nguyên liệu (không cần thông tin hoàn tiền).
+            </div>
           )}
           {!canCancel && <p role="alert" className="text-sm text-red-700">Đơn hiện không thể hủy. Hãy quay lại để xem trạng thái mới nhất.</p>}
           {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{message}</p>}

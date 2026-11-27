@@ -12,6 +12,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator.js';
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
+  // Chức năng: Kiểm tra quyền truy cập theo vai trò (RBAC). Cách hoạt động: Đọc metadata @Roles() của route, so sánh với user.role (CUSTOMER, BARISTA, MANAGER), trả về true nếu hợp lệ hoặc ném 403 Forbidden.
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),

@@ -1,0 +1,1811 @@
+{
+  "info": {
+    "name": "BrewLite Frontend API - Postman Collection",
+    "description": "Bộ sưu tập các API thực tế được gọi bởi giao diện Frontend (apps/web). Đã sửa 100% Request Body khớp DTO.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4001/api",
+      "type": "string"
+    },
+    {
+      "key": "customerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "baristaToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "managerToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "currentOrderId",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth (Đăng ký, đăng nhập và xác thực người dùng)",
+      "item": [
+        {
+          "name": "/api/auth/register Đăng ký tài khoản mới (role: CUSTOMER)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ],
+              "variable": []
+            },
+            "description": "Đăng ký tài khoản mới (role: CUSTOMER)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer.new@brewlite.com\",\n  \"password\": \"Password@123\",\n  \"fullName\": \"Nguyễn Văn A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/auth/login (1. Đăng nhập Khách - Lưu customerToken)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@brewlite.com\",\n  \"password\": \"Demo@1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Đăng nhập bằng tài khoản Khách hàng và tự động lưu vào biến {{customerToken}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const token = response.access_token || response.accessToken;",
+                  "if (token) {",
+                  "    pm.collectionVariables.set(\"customerToken\", token);",
+                  "    pm.environment.set(\"customerToken\", token);",
+                  "    console.log(\"Đã lưu customerToken thành công!\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "/api/auth/login (2. Đăng nhập Barista - Lưu baristaToken)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"barista@brewlite.com\",\n  \"password\": \"Barista@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Đăng nhập bằng tài khoản Barista và tự động lưu vào biến {{baristaToken}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const token = response.access_token || response.accessToken;",
+                  "if (token) {",
+                  "    pm.collectionVariables.set(\"baristaToken\", token);",
+                  "    pm.environment.set(\"baristaToken\", token);",
+                  "    console.log(\"Đã lưu baristaToken thành công!\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "/api/auth/login (3. Đăng nhập Manager - Lưu managerToken)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ],
+              "variable": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@brewlite.com\",\n  \"password\": \"Manager@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Đăng nhập bằng tài khoản Manager và tự động lưu vào biến {{managerToken}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "const token = response.access_token || response.accessToken;",
+                  "if (token) {",
+                  "    pm.collectionVariables.set(\"managerToken\", token);",
+                  "    pm.environment.set(\"managerToken\", token);",
+                  "    console.log(\"Đã lưu managerToken thành công!\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "/api/auth/me Lấy thông tin người dùng hiện tại",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ],
+              "variable": []
+            },
+            "description": "Lấy thông tin người dùng hiện tại"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. Products (Quản lý danh mục thực đơn và công thức pha chế sản phẩm)",
+      "item": [
+        {
+          "name": "/api/products Lấy danh sách sản phẩm (menu), hỗ trợ tìm kiếm, lọc theo danh mục và phân trang",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Tìm theo tên sản phẩm (không phân biệt hoa thường)",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "description": "Lọc theo danh mục",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "Trang hiện tại (bắt đầu từ 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "Số sản phẩm mỗi trang (tối đa 50)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lấy danh sách sản phẩm (menu), hỗ trợ tìm kiếm, lọc theo danh mục và phân trang"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/products/{id} Lấy chi tiết một sản phẩm kèm danh sách kích thước (sizes) và toppings",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID của sản phẩm"
+                }
+              ]
+            },
+            "description": "Lấy chi tiết một sản phẩm kèm danh sách kích thước (sizes) và toppings"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/products/{id}/recipe Lấy công thức sản phẩm ở size M (Barista)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/:id/recipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":id",
+                "recipe"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID sản phẩm"
+                }
+              ]
+            },
+            "description": "Lấy công thức sản phẩm ở size M (Barista)"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/products/{id}/recipe Cập nhật toàn bộ công thức sản phẩm ở size M (Barista)",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/products/:id/recipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "products",
+                ":id",
+                "recipe"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID sản phẩm"
+                }
+              ]
+            },
+            "description": "Cập nhật toàn bộ công thức sản phẩm ở size M (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"ingredientId\": 1,\n      \"quantity\": 18\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Toppings (Quản lý danh sách và định lượng nguyên liệu topping)",
+      "item": [
+        {
+          "name": "/api/toppings Lấy danh sách topping đang kích hoạt",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/toppings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "toppings"
+              ],
+              "variable": []
+            },
+            "description": "Lấy danh sách topping đang kích hoạt"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/toppings/{id}/recipe Lấy công thức topping cho 1 phần (Barista)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/toppings/:id/recipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "toppings",
+                ":id",
+                "recipe"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID topping"
+                }
+              ]
+            },
+            "description": "Lấy công thức topping cho 1 phần (Barista)"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/toppings/{id}/recipe Cập nhật công thức topping cho 1 phần (Barista)",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/toppings/:id/recipe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "toppings",
+                ":id",
+                "recipe"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID topping"
+                }
+              ]
+            },
+            "description": "Cập nhật công thức topping cho 1 phần (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"ingredientId\": 1,\n      \"quantity\": 18\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Ingredients (Quản lý kho nguyên vật liệu, cảnh báo tồn kho và lịch sử biến động)",
+      "item": [
+        {
+          "name": "/api/ingredients Lấy danh sách nguyên liệu và tồn kho",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Từ khóa tìm kiếm theo tên",
+                  "disabled": true
+                },
+                {
+                  "key": "low",
+                  "value": "",
+                  "description": "Chỉ lấy nguyên liệu sắp hết (stock <= lowThreshold)",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "Trang hiện tại",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "Số lượng phần tử mỗi trang",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Lấy danh sách nguyên liệu và tồn kho"
+          },
+          "response": []
+        },
+        {
+          "name": "/api/ingredients Tạo mới nguyên liệu (Barista)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients"
+              ],
+              "variable": []
+            },
+            "description": "Tạo mới nguyên liệu (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sữa đặc Phương Nam\",\n  \"unit\": \"G\",\n  \"stock\": 1000,\n  \"lowThreshold\": 200\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/ingredients/{id} Cập nhật thông tin nguyên liệu (Barista)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{managerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID nguyên liệu"
+                }
+              ]
+            },
+            "description": "Cập nhật thông tin nguyên liệu (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sữa đặc Phương Nam Cao Cấp\",\n  \"lowThreshold\": 250\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/ingredients/{id}/stock Nhập thêm tồn kho nguyên liệu (Barista)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/:id/stock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients",
+                ":id",
+                "stock"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID nguyên liệu"
+                }
+              ]
+            },
+            "description": "Nhập thêm tồn kho nguyên liệu (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sữa đặc Phương Nam\",\n  \"unit\": \"G\",\n  \"stock\": 1000,\n  \"lowThreshold\": 200\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/ingredients/{id}/adjust Kiểm kê hoặc ghi nhận hao hụt nguyên liệu (Barista)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/:id/adjust",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients",
+                ":id",
+                "adjust"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID nguyên liệu"
+                }
+              ]
+            },
+            "description": "Kiểm kê hoặc ghi nhận hao hụt nguyên liệu (Barista)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sữa đặc Phương Nam\",\n  \"unit\": \"G\",\n  \"stock\": 1000,\n  \"lowThreshold\": 200\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/ingredients/{id}/movements Nhật ký biến động tồn kho của một nguyên liệu (Barista)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ingredients/:id/movements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ingredients",
+                ":id",
+                "movements"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "1",
+                  "description": "ID nguyên liệu"
+                }
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Nhật ký biến động tồn kho của một nguyên liệu (Barista)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. Orders (Đặt hàng, xem danh sách, cập nhật trạng thái đơn và xử lý hoàn tiền)",
+      "item": [
+        {
+          "name": "/api/orders Tạo đơn hàng mới (Task 6, 10)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "variable": []
+            },
+            "description": "Tạo đơn ở trạng thái PENDING, server tự tính giá bằng PricingService, giữ hàng bằng optimistic locking (Product.version).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": [\n        1\n      ],\n      \"note\": \"Ít đường, nhiều đá\"\n    }\n  ],\n  \"promoCode\": \"BREW10\",\n  \"usePoints\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response && response.id) {",
+                  "    pm.collectionVariables.set(\"currentOrderId\", String(response.id));",
+                  "    pm.environment.set(\"currentOrderId\", String(response.id));",
+                  "    console.log(\"Đã tự động lưu currentOrderId =\", response.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "/api/orders Hàng đợi đơn của quán (Mở rộng Barista - Mục 6.15)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "",
+                  "disabled": false
+                }
+              ]
+            },
+            "description": "Chỉ nhân viên Barista mới có quyền xem hàng đợi đơn hàng của quán."
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/me Lịch sử đơn hàng của tôi (Task 9)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "me"
+              ],
+              "variable": [],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "",
+                  "description": "Trang hiện tại (bắt đầu từ 1)",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "",
+                  "description": "Số đơn hàng mỗi trang (tối đa 50)",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "Lọc theo trạng thái đơn hàng",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Chỉ trả danh sách đơn của người dùng hiện tại, sắp xếp mới nhất trước, có phân trang."
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id} Xem chi tiết đơn hàng (Task 9)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Chi tiết đơn hàng kèm danh sách món, lịch sử thanh toán và điểm thưởng tích lũy."
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/cancel Hủy đơn hàng (Task 10 & Quy trình hoàn tiền VietQR)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Chủ đơn hoặc barista hủy đơn: hoàn lại tồn kho, hoàn usedCount mã giảm giá, thu hồi điểm thưởng. Ghi nhận tài khoản ngân hàng để Barista hoàn tiền VietQR.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"size\": \"M\",\n      \"quantity\": 1,\n      \"toppingIds\": [\n        1\n      ],\n      \"note\": \"Ít đường, nhiều đá\"\n    }\n  ],\n  \"promoCode\": \"BREW10\",\n  \"usePoints\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/confirm-refund Barista xác nhận đã chuyển khoản hoàn tiền VietQR cho khách",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/confirm-refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "confirm-refund"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Chỉ nhân viên Barista mới có quyền xác nhận đã hoàn tất giao dịch chuyển tiền VietQR cho đơn hủy.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refundRef\": \"FT2401928374\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/refund-points Hoàn tiền đơn hủy bằng điểm thưởng cho khách hàng (Barista/Manager)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/refund-points",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "refund-points"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Quy đổi tổng tiền đơn đã thanh toán thành điểm thưởng (1 điểm = 10đ) và cộng trực tiếp vào tài khoản khách.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/fail-refund Barista báo chuyển khoản hoàn tiền thất bại (lỗi STK, tài khoản khóa)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/fail-refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "fail-refund"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Đánh dấu quy trình hoàn tiền thất bại với lý do cụ thể, chuyển sang FAILED để xử lý lại.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Tài khoản người nhận không tồn tại hoặc bị đóng\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/hold-refund Chuyển hoàn tiền sang trạng thái đối soát nghi ngờ (UNKNOWN)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/hold-refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "hold-refund"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Treo giao dịch hoàn tiền khi trạng thái ngân hàng chưa rõ ràng để đối soát trước khi hoàn tất.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Lệnh chuyển khoản đang xử lý tại Napas, chờ đối soát\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/retry-refund Thử lại hoàn tiền VietQR (chuyển về PENDING)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/retry-refund",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "retry-refund"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Cho phép Barista thử lại giao dịch hoàn tiền, có thể cập nhật thông tin tài khoản/ngân hàng nếu khách cung cấp lại.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refundBank\": \"VCB\",\n  \"refundAccount\": \"0123456789\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/orders/{id}/status Barista cập nhật trạng thái đơn (Task 10 & Mở rộng Barista)",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{baristaToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/:id/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "orders",
+                ":id",
+                "status"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{currentOrderId}}",
+                  "description": "ID đơn hàng"
+                }
+              ]
+            },
+            "description": "Chỉ barista có quyền chuyển bước đơn hàng (PAID → PREPARING → READY → COMPLETED).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"PREPARING\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Payments (Thanh toán trực tiếp, cổng thanh toán điện tử VNPay và hoàn tất giả lập)",
+      "item": [
+        {
+          "name": "/api/payments Thanh toán đơn hàng (hỗ trợ Idempotency)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments"
+              ],
+              "variable": []
+            },
+            "description": "Thanh toán đơn hàng (hỗ trợ Idempotency)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1,\n  \"method\": \"WALLET\",\n  \"mockResult\": \"SUCCESS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/create-url Tạo URL thanh toán VNPay Sandbox (ADR-004)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/create-url",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "create-url"
+              ],
+              "variable": []
+            },
+            "description": "Tạo URL thanh toán VNPay Sandbox (ADR-004)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/simulate-complete Tạo query callback ký HMAC-SHA512 từ Simulator (Chỉ dành cho môi trường thử nghiệm)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{customerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": false
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/simulate-complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "simulate-complete"
+              ],
+              "variable": []
+            },
+            "description": "Tạo query callback ký HMAC-SHA512 từ Simulator (Chỉ dành cho môi trường thử nghiệm)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "/api/payments/vnpay/verify Xác thực kết quả thanh toán từ VNPay (Return URL hiển thị kết quả cho khách)",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "idempotency-key",
+                "value": "{{$guid}}",
+                "type": "text",
+                "description": "Tự động tạo UUID ngẫu nhiên chống trừ tiền / tạo trùng đơn",
+                "disabled": true
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/vnpay/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payments",
+                "vnpay",
+                "verify"
+              ],
+              "variable": []
+            },
+            "description": "Xác thực kết quả thanh toán từ VNPay (Return URL hiển thị kết quả cho khách)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Promotions (Kiểm tra và áp dụng mã voucher giảm giá)",
+      "item": [
+        {
+          "name": "/api/promotions/validate Kiểm tra mã khuyến mãi và tính tiền giảm",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/promotions/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "promotions",
+                "validate"
+              ],
+              "variable": []
+            },
+            "description": "Kiểm tra mã khuyến mãi và tính tiền giảm",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"BREW10\",\n  \"orderValue\": 60000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

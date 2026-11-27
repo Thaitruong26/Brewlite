@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -14,6 +15,13 @@ import { RecipeService } from '../common/recipe/recipe.service.js';
 import { assertTransition } from './order-state.js';
 import { CreateOrderDto, CreateOrderItemDto } from './dto/create-order.dto.js';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto.js';
+import {
+  CancelOrderDto,
+  ConfirmRefundDto,
+  FailRefundDto,
+  HoldRefundDto,
+  RetryRefundDto,
+} from './dto/cancel-order.dto.js';
 
 export const ORDER_PAYMENT_TIMEOUT_MINUTES = 15;
 export const ORDER_PAYMENT_TIMEOUT_MS = ORDER_PAYMENT_TIMEOUT_MINUTES * 60 * 1000;
@@ -33,8 +41,8 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     private readonly recipeService: RecipeService,
   ) {}
 
+  // Chức năng: Xử lý sự kiện ModuleInit. Cách hoạt động: Nhận sự kiện từ giao diện, cập nhật state hoặc gọi API xử lý nghiệp vụ tương ứng.
   onModuleInit() {
-    // Quét và tự động dọn dẹp các đơn PENDING/PAYMENT_FAILED quá 15 phút định kỳ mỗi 60s
     this.cleanupInterval = setInterval(() => {
       this.cancelExpiredOrders().catch((err) => {
         console.error('Lỗi khi chạy định kỳ cancelExpiredOrders:', err);
@@ -46,6 +54,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Chức năng: Xử lý sự kiện ModuleDestroy. Cách hoạt động: Nhận sự kiện từ giao diện, cập nhật state hoặc gọi API xử lý nghiệp vụ tương ứng.
   onModuleDestroy() {
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
@@ -53,27 +62,19 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /**
-   * Task 6 & Task 10: POST /orders
-   * Tạo đơn hàng ở trạng thái PENDING từ giỏ hàng.
-   * Tính lại giá bằng PricingService (không tin giá client).
-   * Kiểm soát tồn kho theo nguyên liệu bằng transaction và optimistic locking (Ingredient.version).
-   */
+  // Chức năng: Xử lý đặt đơn trọn vẹn trong Transaction. Cách hoạt động: Validate sản phẩm/topping, tính giá bằng PricingService, kiểm tra voucher/điểm thưởng, trừ tồn kho bằng RecipeService & IngredientsService, tạo Order PENDING kèm OrderItem snapshot.
   async createOrder(userId: number, dto: CreateOrderDto) {
     const MAX_RETRIES = 10;
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
         return await this.prisma.$transaction(async (tx) => {
-          // 1. Giữ tồn kho nguyên liệu theo công thức bằng optimistic locking (Ingredient.version)
           const reservation = await this.reserveStock(tx, dto.items);
 
-          // 2. Tính lại giá trên server (nguồn chân lý duy nhất)
           const pricing = await this.pricingService.calculate(dto.items, tx);
           const subtotal = pricing.subtotal;
           let discountAmount = 0;
 
-          // 4. Áp dụng mã giảm giá (nếu có)
           if (dto.promoCode) {
             const promo = await tx.promoCode.findUnique({
               where: { code: dto.promoCode },
@@ -111,7 +112,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
               });
             }
 
-            // Tính số tiền giảm
             if (promo.type === 'PERCENT') {
               discountAmount = Math.floor((subtotal * promo.value) / 100);
               if (promo.maxDiscount && discountAmount > promo.maxDiscount) {
@@ -122,7 +122,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             }
             if (discountAmount > subtotal) discountAmount = subtotal;
 
-            // Tăng usedCount nguyên tử trong cùng transaction
             const promoUpdate = await tx.promoCode.updateMany({
               where: {
                 code: promo.code,
@@ -142,7 +141,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             }
           }
 
-          // 4.1 Áp dụng điểm tích lũy (nếu có yêu cầu: 100 điểm = 1.000đ -> 1 điểm = 10đ)
           let pointsUsed = 0;
           if (dto.usePoints && userId) {
             const currentUser = await tx.user.findUnique({
@@ -166,7 +164,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
           const total = Math.max(0, subtotal - discountAmount);
 
-          // 5. Lưu Order và OrderItem (chụp snapshot tên, topping, giá)
           const newOrder = await tx.order.create({
             data: {
               userId,
@@ -196,7 +193,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
             },
           });
 
-          // 6. Ghi nhật ký biến động kho (StockMovement) cho từng nguyên liệu đã giữ
           for (const [ingredientId, qty] of reservation.orderNeedsMap.entries()) {
             await tx.stockMovement.create({
               data: {
@@ -238,7 +234,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
               message: 'Hệ thống đang bận do nhiều người đặt cùng lúc, vui lòng thử lại',
             });
           }
-          // Nghỉ ngẫu nhiên 10 đến 50 ms rồi thử lại cả transaction
           await new Promise((resolve) =>
             setTimeout(resolve, Math.floor(Math.random() * 41) + 10),
           );
@@ -254,10 +249,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Task 9: GET /orders/me
-   * Lịch sử đơn hàng của người dùng hiện tại (chỉ lấy đơn của req.user.id), sắp xếp mới nhất trước.
-   */
+  // Chức năng: Lấy dữ liệu OrdersMe. Cách hoạt động: Truy vấn dữ liệu từ PostgreSQL qua Prisma và trả về kết quả đã định dạng.
   async getOrdersMe(userId: number, query: GetOrdersQueryDto) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
@@ -326,11 +318,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /**
-   * Task 9: GET /orders/:id
-   * Chi tiết đơn hàng (kèm items, payments, pointsEarned).
-   * Khách chỉ xem được đơn của mình, Barista được xem mọi đơn.
-   */
+  // Chức năng: Lấy dữ liệu OrderById. Cách hoạt động: Truy vấn dữ liệu từ PostgreSQL qua Prisma và trả về kết quả đã định dạng.
   async getOrderById(id: number, user: UserContext) {
     const order = await this.prisma.order.findUnique({
       where: { id },
@@ -361,7 +349,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       });
     }
 
-    if (order.userId !== user.id && user.role !== Role.BARISTA) {
+    if (order.userId !== user.id && user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
       throw new ForbiddenException({
         code: 'FORBIDDEN',
         message: 'Bạn không có quyền xem đơn hàng này',
@@ -409,11 +397,8 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /**
-   * Task 10: POST /orders/:id/cancel
-   * Hủy đơn hàng: hoàn kho, hoàn lượt dùng mã giảm giá, hoàn tiền/thu hồi điểm nếu đơn đã PAID.
-   */
-  async cancelOrder(id: number, user: UserContext) {
+  // Chức năng: Xử lý hủy đơn hàng an toàn. Cách hoạt động: Mở transaction kiểm tra trạng thái (chỉ hủy được khi PENDING, PAYMENT_FAILED hoặc PAID), hoàn trả tồn kho, hoàn lại điểm đã dùng, hoàn lượt promo; nếu đơn đã PAID thì lưu yêu cầu hoàn tiền VietQR trạng thái PENDING.
+  async cancelOrder(id: number, user: UserContext, dto?: CancelOrderDto) {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id },
@@ -430,14 +415,13 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      if (order.userId !== user.id && user.role !== Role.BARISTA) {
+      if (order.userId !== user.id && user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
         throw new ForbiddenException({
           code: 'FORBIDDEN',
           message: 'Bạn không có quyền hủy đơn hàng này',
         });
       }
 
-      // Kiểm tra xem có giao dịch đang thanh toán dở dang không
       const hasProcessingPayment = order.payments.some((p) => p.status === 'PROCESSING');
       if (hasProcessingPayment) {
         throw new ConflictException({
@@ -446,13 +430,10 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Kiểm tra chuyển trạng thái qua State Machine
       assertTransition(order.status, OrderStatus.CANCELLED);
 
-      // 1. Hoàn kho nguyên liệu theo snapshot consumption
       await this.releaseStock(tx, order);
 
-      // 2. Hoàn lại số lượt sử dụng mã giảm giá (usedCount)
       if (order.promoCode) {
         await tx.promoCode.update({
           where: { code: order.promoCode },
@@ -462,7 +443,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
       if (order.pointsUsed > 0 && order.userId) {
         await tx.user.update({
           where: { id: order.userId },
@@ -472,8 +452,14 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // 3. Nếu đơn đã PAID: thu hồi điểm thưởng và ghi nhận hoàn tiền mock
       if (order.status === OrderStatus.PAID) {
+        if (!dto?.refundAccount?.trim()) {
+          throw new BadRequestException({
+            code: 'REFUND_ACCOUNT_REQUIRED',
+            message: 'Đơn hàng đã thanh toán yêu cầu cung cấp số tài khoản ngân hàng để nhận hoàn tiền',
+          });
+        }
+
         if (order.pointsEarned > 0) {
           await tx.user.update({
             where: { id: order.userId },
@@ -490,21 +476,20 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           });
         }
 
-        // Cập nhật Payment ghi nhận hoàn tiền mock
         const successfulPayment = order.payments.find((p) => p.status === 'SUCCESS');
+        const refString = `VIETQR:${dto.refundBank || 'MB'}:${dto.refundAccount.trim()}:PENDING`;
+
         if (successfulPayment) {
           await tx.payment.update({
             where: { id: successfulPayment.id },
             data: {
-              refundedAt: new Date(),
-              refundedAmount: order.total,
-              refundRef: `MOCK-REFUND-${Date.now()}`,
+              refundedAmount: 0,
+              refundRef: refString,
             },
           });
         }
       }
 
-      // 4. Đổi trạng thái sang CANCELLED
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
         data: {
@@ -521,9 +506,423 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Tự động hủy một đơn hàng hết hạn thanh toán (hệ thống thực thi, không kiểm tra quyền user).
-   */
+  // Chức năng: Hàm confirmRefund(id, user, dto). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
+  async confirmRefund(id: number, user: UserContext, dto?: ConfirmRefundDto) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền xác nhận hoàn tiền cho đơn hàng',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { payments: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          message: `Không tìm thấy đơn hàng #${id}`,
+        });
+      }
+
+      if (order.status !== OrderStatus.CANCELLED) {
+        throw new BadRequestException({
+          code: 'INVALID_STATUS',
+          message: 'Chỉ có thể xác nhận hoàn tiền cho đơn hàng đã bị hủy',
+        });
+      }
+
+      if (!dto?.refundRef?.trim()) {
+        throw new BadRequestException({
+          code: 'REFUND_PROOF_REQUIRED',
+          message: 'Vui lòng cung cấp mã giao dịch hoặc bằng chứng chuyển khoản VietQR',
+        });
+      }
+
+      const payment = order.payments.find(
+        (p) => p.status === 'SUCCESS' || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      if (!payment) {
+        throw new BadRequestException({
+          code: 'NO_PAYMENT_FOUND',
+          message: 'Đơn hàng không có thông tin thanh toán để hoàn tiền',
+        });
+      }
+
+      if (payment.refundedAt) {
+        throw new ConflictException({
+          code: 'ALREADY_REFUNDED',
+          message: 'Đơn hàng này đã được xác nhận hoàn tiền trước đó, không thể xác nhận lại',
+        });
+      }
+
+      const proof = dto.refundRef.trim();
+      const confirmedRef = payment.refundRef
+        ? `${payment.refundRef}:CONFIRMED:${proof}`
+        : `VIETQR:CONFIRMED:${proof}`;
+
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          refundedAt: new Date(),
+          refundedAmount: order.total,
+          refundRef: confirmedRef,
+        },
+      });
+
+      return {
+        orderId: order.id,
+        refundedAt: updatedPayment.refundedAt,
+        refundedAmount: updatedPayment.refundedAmount,
+        refundRef: updatedPayment.refundRef,
+        message: 'Xác nhận hoàn tiền VietQR thành công',
+      };
+    });
+  }
+
+  // Chức năng: Hoàn tiền đơn hủy bằng cách cộng điểm thưởng vào tài khoản khách (1 điểm = 10đ). Cách hoạt động: Cộng loyaltyPoints và đánh dấu payment đã hoàn.
+  async refundPoints(id: number, user: UserContext) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền hoàn điểm cho khách',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { payments: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          message: `Không tìm thấy đơn hàng #${id}`,
+        });
+      }
+
+      if (order.status !== OrderStatus.CANCELLED) {
+        throw new BadRequestException({
+          code: 'INVALID_STATUS',
+          message: 'Chỉ có thể hoàn điểm cho đơn hàng đã bị hủy',
+        });
+      }
+
+      if (!order.userId) {
+        throw new BadRequestException({
+          code: 'USER_REQUIRED',
+          message: 'Đơn hàng không gắn với tài khoản thành viên để cộng điểm',
+        });
+      }
+
+      const payment = order.payments.find(
+        (p) => p.status === 'SUCCESS' || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      if (!payment) {
+        throw new BadRequestException({
+          code: 'NO_PAYMENT_FOUND',
+          message: 'Đơn hàng không có thông tin thanh toán để hoàn điểm',
+        });
+      }
+
+      if (payment.refundedAt) {
+        throw new ConflictException({
+          code: 'ALREADY_REFUNDED',
+          message: 'Đơn hàng này đã được hoàn tiền/hoàn điểm trước đó',
+        });
+      }
+
+      const pointsToRefund = Math.ceil(order.total / 10);
+
+      await tx.user.update({
+        where: { id: order.userId },
+        data: {
+          loyaltyPoints: { increment: pointsToRefund },
+        },
+      });
+
+      const refundRef = `POINTS:${pointsToRefund}`;
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          refundedAt: new Date(),
+          refundedAmount: order.total,
+          refundRef,
+        },
+      });
+
+      return {
+        orderId: order.id,
+        pointsRefunded: pointsToRefund,
+        refundedAt: updatedPayment.refundedAt,
+        refundedAmount: updatedPayment.refundedAmount,
+        refundRef: updatedPayment.refundRef,
+        message: `Đã hoàn ${pointsToRefund} điểm thưởng vào tài khoản khách hàng`,
+      };
+    });
+  }
+
+  // Chức năng: Xử lý tính toán / định dạng dữ liệu (parseVietQrRef). Cách hoạt động: Biến đổi tham số đầu vào (refundRef) thành kết quả chuẩn để hiển thị hoặc tính toán.
+  public parseVietQrRef(refundRef?: string | null): {
+    bank: string;
+    account: string;
+    status: 'PENDING' | 'FAILED' | 'UNKNOWN' | 'COMPLETED' | null;
+    extra?: string;
+  } {
+    if (!refundRef || !refundRef.startsWith('VIETQR:')) {
+      return { bank: 'MB', account: '00000000', status: null };
+    }
+    const parts = refundRef.split(':');
+    const bank = parts[1] || 'MB';
+    const account = parts[2] || '00000000';
+    let status: 'PENDING' | 'FAILED' | 'UNKNOWN' | 'COMPLETED' | null = null;
+    let extra: string | undefined = undefined;
+
+    if (refundRef.includes(':CONFIRMED:')) {
+      status = 'COMPLETED';
+      extra = refundRef.split(':CONFIRMED:')[1];
+    } else if (refundRef.includes(':FAILED:')) {
+      status = 'FAILED';
+      extra = refundRef.split(':FAILED:')[1];
+    } else if (refundRef.includes(':UNKNOWN:')) {
+      status = 'UNKNOWN';
+      extra = refundRef.split(':UNKNOWN:')[1];
+    } else if (refundRef.includes(':PENDING')) {
+      status = 'PENDING';
+    }
+
+    return { bank, account, status, extra };
+  }
+
+  // Chức năng: Hàm failRefund(id, user, dto). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
+  async failRefund(id: number, user: UserContext, dto: FailRefundDto) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền cập nhật trạng thái hoàn tiền',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { payments: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          message: `Không tìm thấy đơn hàng #${id}`,
+        });
+      }
+
+      if (order.status !== OrderStatus.CANCELLED) {
+        throw new BadRequestException({
+          code: 'INVALID_STATUS',
+          message: 'Chỉ có thể ghi nhận thất bại cho đơn hàng đã bị hủy',
+        });
+      }
+
+      if (!dto?.reason?.trim()) {
+        throw new BadRequestException({
+          code: 'REASON_REQUIRED',
+          message: 'Vui lòng cung cấp lý do chuyển tiền thất bại',
+        });
+      }
+
+      const payment = order.payments.find(
+        (p) => p.status === 'SUCCESS' || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      if (!payment) {
+        throw new BadRequestException({
+          code: 'NO_PAYMENT_FOUND',
+          message: 'Đơn hàng không có thông tin thanh toán để hoàn tiền',
+        });
+      }
+
+      if (payment.refundedAt) {
+        throw new ConflictException({
+          code: 'ALREADY_REFUNDED',
+          message: 'Đơn hàng này đã được xác nhận hoàn tiền thành công, không thể báo thất bại',
+        });
+      }
+
+      const { bank, account } = this.parseVietQrRef(payment.refundRef);
+      const failedRef = `VIETQR:${bank}:${account}:FAILED:${dto.reason.trim()}`;
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          refundRef: failedRef,
+          refundedAmount: 0,
+          refundedAt: null,
+        },
+      });
+
+      return {
+        orderId: order.id,
+        refundStatus: 'FAILED',
+        reason: dto.reason.trim(),
+        refundRef: failedRef,
+        message: 'Đã cập nhật trạng thái hoàn tiền thất bại. Barista có thể liên hệ khách hoặc bấm Thử lại.',
+      };
+    });
+  }
+
+  // Chức năng: Hàm holdRefund(id, user, dto). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
+  async holdRefund(id: number, user: UserContext, dto?: HoldRefundDto) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền chuyển trạng thái đối soát',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { payments: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          message: `Không tìm thấy đơn hàng #${id}`,
+        });
+      }
+
+      if (order.status !== OrderStatus.CANCELLED) {
+        throw new BadRequestException({
+          code: 'INVALID_STATUS',
+          message: 'Chỉ có thể chuyển đối soát cho đơn hàng đã bị hủy',
+        });
+      }
+
+      const payment = order.payments.find(
+        (p) => p.status === 'SUCCESS' || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      if (!payment) {
+        throw new BadRequestException({
+          code: 'NO_PAYMENT_FOUND',
+          message: 'Đơn hàng không có thông tin thanh toán để hoàn tiền',
+        });
+      }
+
+      if (payment.refundedAt) {
+        throw new ConflictException({
+          code: 'ALREADY_REFUNDED',
+          message: 'Đơn hàng này đã được xác nhận hoàn tiền thành công, không thể đưa vào đối soát',
+        });
+      }
+
+      const { bank, account } = this.parseVietQrRef(payment.refundRef);
+      const note = dto?.note?.trim() || 'Chờ đối soát ngân hàng';
+      const holdRef = `VIETQR:${bank}:${account}:UNKNOWN:${note}`;
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          refundRef: holdRef,
+          refundedAmount: 0,
+          refundedAt: null,
+        },
+      });
+
+      return {
+        orderId: order.id,
+        refundStatus: 'UNKNOWN',
+        note,
+        refundRef: holdRef,
+        message: 'Đã chuyển giao dịch hoàn tiền sang diện nghi ngờ / đối soát ngân hàng (UNKNOWN)',
+      };
+    });
+  }
+
+  // Chức năng: Hàm retryRefund(id, user, dto). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
+  async retryRefund(id: number, user: UserContext, dto?: RetryRefundDto) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền thực hiện thử lại hoàn tiền',
+      });
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id },
+        include: { payments: true },
+      });
+
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          message: `Không tìm thấy đơn hàng #${id}`,
+        });
+      }
+
+      if (order.status !== OrderStatus.CANCELLED) {
+        throw new BadRequestException({
+          code: 'INVALID_STATUS',
+          message: 'Chỉ có thể thử lại hoàn tiền cho đơn hàng đã bị hủy',
+        });
+      }
+
+      const payment = order.payments.find(
+        (p) => p.status === 'SUCCESS' || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      if (!payment) {
+        throw new BadRequestException({
+          code: 'NO_PAYMENT_FOUND',
+          message: 'Đơn hàng không có thông tin thanh toán để hoàn tiền',
+        });
+      }
+
+      if (payment.refundedAt) {
+        throw new ConflictException({
+          code: 'ALREADY_REFUNDED',
+          message: 'Đơn hàng này đã được xác nhận hoàn tiền thành công, không thể thử lại',
+        });
+      }
+
+      const { bank, account, status: currentRefundStatus } = this.parseVietQrRef(payment.refundRef);
+
+      if (currentRefundStatus === 'UNKNOWN') {
+        throw new BadRequestException({
+          code: 'REFUND_IN_RECONCILIATION',
+          message:
+            'Giao dịch đang ở trạng thái Đối soát (UNKNOWN), tuyệt đối không được thử lại ngay để tránh hoàn tiền trùng lặp cho khách hàng',
+        });
+      }
+
+      const targetBank = dto?.refundBank?.trim() || bank;
+      const targetAccount = dto?.refundAccount?.trim() || account;
+      const pendingRef = `VIETQR:${targetBank}:${targetAccount}:PENDING`;
+
+      await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          refundRef: pendingRef,
+          refundedAmount: 0,
+          refundedAt: null,
+        },
+      });
+
+      return {
+        orderId: order.id,
+        refundStatus: 'PENDING',
+        refundBank: targetBank,
+        refundAccount: targetAccount,
+        refundRef: pendingRef,
+        message: 'Đã đặt lại trạng thái hoàn tiền về PENDING để thử lại',
+      };
+    });
+  }
+
+  // Chức năng: Hàm cancelOrderInternal(id). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   async cancelOrderInternal(id: number) {
     return await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
@@ -537,21 +936,17 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       if (!order) return null;
       if (order.status === OrderStatus.CANCELLED) return order;
 
-      // Không hủy nếu có payment đang PROCESSING
       const hasProcessingPayment = order.payments.some((p) => p.status === 'PROCESSING');
       if (hasProcessingPayment) {
         return null;
       }
 
-      // Chỉ hủy khi ở trạng thái PENDING hoặc PAYMENT_FAILED
       if (order.status !== OrderStatus.PENDING && order.status !== OrderStatus.PAYMENT_FAILED) {
         return null;
       }
 
-      // 1. Hoàn kho nguyên liệu theo snapshot consumption
       await this.releaseStock(tx, order);
 
-      // 2. Hoàn lại số lượt sử dụng mã giảm giá (usedCount)
       if (order.promoCode) {
         await tx.promoCode.update({
           where: { code: order.promoCode },
@@ -561,7 +956,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Hoàn lại điểm tích lũy đã dùng khi đặt đơn (nếu có)
       if (order.pointsUsed > 0 && order.userId) {
         await tx.user.update({
           where: { id: order.userId },
@@ -571,7 +965,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // 3. Đổi trạng thái sang CANCELLED
       const updatedOrder = await tx.order.update({
         where: { id: order.id },
         data: {
@@ -583,9 +976,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Quét và tự động hủy các đơn hàng PENDING hoặc PAYMENT_FAILED đã quá 15 phút.
-   */
+  // Chức năng: Hàm cancelExpiredOrders. Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   async cancelExpiredOrders(): Promise<number> {
     const expiredBefore = new Date(Date.now() - ORDER_PAYMENT_TIMEOUT_MS);
     const expiredOrders = await this.prisma.order.findMany({
@@ -608,15 +999,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     return count;
   }
 
-  /**
-   * Task 10 & Barista: PATCH /orders/:id/status
-   * Barista chuyển bước đơn hàng: PAID → PREPARING → READY → COMPLETED
-   */
+  // Chức năng: Chuyển đổi trạng thái đơn hàng theo máy trạng thái. Cách hoạt động: Kiểm tra transition hợp lệ, nếu lên COMPLETED thì gọi LoyaltyService cộng điểm thưởng cho khách.
   async updateOrderStatus(id: number, nextStatus: OrderStatus, user: UserContext) {
-    if (user.role !== Role.BARISTA) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
       throw new ForbiddenException({
         code: 'FORBIDDEN',
-        message: 'Chỉ nhân viên Barista mới có quyền đổi trạng thái đơn hàng',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền đổi trạng thái đơn hàng',
       });
     }
 
@@ -632,7 +1020,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Kiểm tra chuyển tiếp hợp lệ qua State Machine
       assertTransition(order.status, nextStatus);
 
       const updated = await tx.order.update({
@@ -642,7 +1029,6 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         },
       });
 
-      // Nếu đơn chuyển sang PAID (Barista bấm xác nhận tiền), cập nhật payment và tự động cộng điểm thưởng cho khách hàng
       if (nextStatus === OrderStatus.PAID) {
         const existingProcessing = await tx.payment.findFirst({
           where: { orderId: order.id, status: PaymentStatus.PROCESSING },
@@ -706,16 +1092,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /**
-   * Barista Queue: GET /orders (Mở rộng Barista - Mục 6.15)
-   * Hàng đợi phục vụ cho nhân viên Barista: lọc status (mặc định PAID, PREPARING, READY),
-   * sắp xếp createdAt tăng dần (cũ nhất lên đầu).
-   */
+  // Chức năng: Lấy dữ liệu BaristaOrders. Cách hoạt động: Truy vấn dữ liệu từ PostgreSQL qua Prisma và trả về kết quả đã định dạng.
   async getBaristaOrders(query: { status?: string; page?: number; limit?: number }, user: UserContext) {
-    if (user.role !== Role.BARISTA) {
+    if (user.role !== Role.BARISTA && user.role !== Role.MANAGER) {
       throw new ForbiddenException({
         code: 'FORBIDDEN',
-        message: 'Chỉ nhân viên Barista mới có quyền xem hàng đợi đơn hàng',
+        message: 'Chỉ nhân viên Barista hoặc Manager mới có quyền xem hàng đợi đơn hàng',
       });
     }
 
@@ -745,31 +1127,58 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'asc' }, // Cũ nhất lên đầu theo thứ tự đến quầy
+        orderBy: { createdAt: 'desc' }, // Mới nhất lên đầu
         include: {
           user: {
             select: { fullName: true },
           },
           items: true,
+          payments: {
+            select: {
+              id: true,
+              method: true,
+              status: true,
+              amount: true,
+              refundedAt: true,
+              refundedAmount: true,
+              refundRef: true,
+            },
+          },
         },
       }),
     ]);
 
-    const data = orders.map((order) => ({
-      id: order.id,
-      code: `#${order.id}`,
-      status: order.status,
-      total: order.total,
-      customerName: order.user?.fullName || 'Khách hàng',
-      createdAt: order.createdAt.toISOString(),
-      items: order.items.map((item) => ({
-        productName: item.productName,
-        size: item.size,
-        qty: item.qty,
-        toppings: item.toppings,
-        note: item.note,
-      })),
-    }));
+    const data = orders.map((order) => {
+      const refundPayment = order.payments?.find(
+        (p) => p.status === 'SUCCESS' || p.refundedAt || (p.refundRef && p.refundRef.startsWith('VIETQR')),
+      );
+      const parsedRef = this.parseVietQrRef(refundPayment?.refundRef);
+      const isRefunded = Boolean(refundPayment?.refundedAt);
+      const refundStatus = isRefunded ? 'COMPLETED' : parsedRef.status;
+
+      return {
+        id: order.id,
+        code: `#${order.id}`,
+        status: order.status,
+        total: order.total,
+        customerName: order.user?.fullName || 'Khách hàng',
+        createdAt: order.createdAt.toISOString(),
+        items: order.items.map((item) => ({
+          productName: item.productName,
+          size: item.size,
+          qty: item.qty,
+          toppings: item.toppings,
+          note: item.note,
+        })),
+        isRefunded,
+        refundStatus,
+        refundBank: parsedRef.bank,
+        refundAccount: parsedRef.account,
+        refundExtra: parsedRef.extra || null,
+        refundRef: refundPayment?.refundRef || null,
+        refundedAt: refundPayment?.refundedAt ? refundPayment.refundedAt.toISOString() : null,
+      };
+    });
 
     const totalPages = Math.ceil(total / limit) || 1;
 
@@ -784,10 +1193,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  /**
-   * Giữ tồn kho nguyên liệu theo công thức bằng optimistic locking (Ingredient.version).
-   * Sắp xếp ingredientId tăng dần để phòng tránh deadlock.
-   */
+  // Chức năng: Hàm reserveStock(tx, items). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   private async reserveStock(tx: any, items: CreateOrderItemDto[]) {
     const productIds = [...new Set(items.map((i) => i.productId))];
     const toppingIds = [...new Set(items.flatMap((i) => i.toppingIds ?? []))];
@@ -936,9 +1342,7 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     return { lineConsumptions, orderNeedsMap };
   }
 
-  /**
-   * Hoàn kho nguyên liệu đúng theo snapshot OrderItem.consumption (không tính lại từ công thức hiện tại).
-   */
+  // Chức năng: Hàm releaseStock(tx, order). Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   private async releaseStock(tx: any, order: { id: number; items: any[] }) {
     const releaseMap = new Map<number, number>();
     for (const item of order.items) {

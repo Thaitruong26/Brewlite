@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/client";
 import { useAuthStore } from "@/store/auth-store";
 import { LoadingState } from "@/components/ui/loading-state";
 
+// Chức năng: Component giao diện LoginPage. Cách hoạt động: Quản lý trạng thái hiển thị bằng React hooks và render cấu trúc JSX tương ứng.
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useAuthStore((state) => state.setSession);
@@ -17,6 +18,7 @@ export default function LoginPage() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Chức năng: Xử lý sự kiện Submit. Cách hoạt động: Nhận sự kiện từ giao diện, cập nhật state hoặc gọi API xử lý nghiệp vụ tương ứng.
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
@@ -34,7 +36,7 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       const requestedPath = params.get("next") || params.get("redirect");
       let destination = requestedPath?.startsWith("/") && !requestedPath.startsWith("//") ? requestedPath : "/menu";
-      if (result.user.role === "BARISTA" && (!requestedPath || requestedPath === "/menu")) {
+      if ((result.user.role === "BARISTA" || result.user.role === "MANAGER") && (!requestedPath || requestedPath === "/menu")) {
         destination = "/barista";
       }
       router.replace(destination);
@@ -45,6 +47,7 @@ export default function LoginPage() {
     }
   }
 
+  // Chức năng: Hàm fillBarista. Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   function fillBarista() {
     setEmail("barista@brewlite.com");
     setPassword("Barista@123");
@@ -52,6 +55,7 @@ export default function LoginPage() {
     setFormError("");
   }
 
+  // Chức năng: Hàm fillCustomer. Cách hoạt động: Thực thi logic xử lý nghiệp vụ của module và trả về kết quả cho nơi gọi.
   function fillCustomer() {
     setEmail("demo@brewlite.com");
     setPassword("Demo@1234");
@@ -59,9 +63,8 @@ export default function LoginPage() {
     setFormError("");
   }
 
-  return <section className="mx-auto grid min-h-[calc(100vh-140px)] max-w-6xl items-center gap-10 px-5 py-10 md:grid-cols-2 md:px-10">
-    <div className="hidden rounded-[2rem] bg-[#e9f0e9] p-10 md:block"><p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">BrewLite · Chào mừng trở lại</p><h1 className="mt-5 text-4xl font-semibold leading-tight text-[#183d2c]">Khoảnh khắc cà phê tiếp theo đang chờ bạn.</h1><p className="mt-4 leading-7 text-[#66736a]">Đăng nhập để tiếp tục hành trình thưởng thức cùng BrewLite hoặc quản lý quầy pha chế.</p><div className="mt-9 flex items-center gap-3"><span className="grid size-12 place-items-center rounded-full bg-[#183d2c] text-xl text-white">☕</span><span className="text-sm font-semibold text-[#31553e]">Thơm lành mỗi ngày</span></div></div>
-    <div className="mx-auto w-full max-w-md">
+  return <section className="w-full px-4 py-6 flex flex-col gap-6">
+    <div className="w-full">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-800">Tài khoản BrewLite</p>
       <h2 className="mt-3 text-3xl font-semibold text-[#183d2c]">Đăng nhập</h2>
       <p className="mt-2 text-sm text-[#66736a]">Nhập thông tin tài khoản của bạn để tiếp tục.</p>
@@ -71,7 +74,7 @@ export default function LoginPage() {
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
         <span className="text-stone-500 py-1">Tài khoản mẫu:</span>
         <button type="button" onClick={fillCustomer} className="rounded-lg bg-stone-100 px-2.5 py-1 font-medium text-stone-800 hover:bg-stone-200 cursor-pointer">
-          👤 Khách hàng (demo)
+          👤 Khách hàng
         </button>
         <button type="button" onClick={fillBarista} className="rounded-lg bg-emerald-100 px-2.5 py-1 font-medium text-emerald-800 hover:bg-emerald-200 cursor-pointer">
           ☕ Barista

@@ -855,8 +855,98 @@
     },
     "/api/orders/{id}/cancel": {
       "post": {
-        "description": "Chủ đơn hoặc barista hủy đơn: hoàn lại tồn kho, hoàn usedCount mã giảm giá, thu hồi điểm.",
+        "description": "Chủ đơn hoặc barista hủy đơn: hoàn lại tồn kho, hoàn usedCount mã giảm giá, thu hồi điểm thưởng. Ghi nhận tài khoản ngân hàng để Barista hoàn tiền VietQR.",
         "operationId": "OrdersController_cancelOrder",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID đơn hàng",
+            "schema": {
+              "example": 1042,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelOrderDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Hủy đơn thành công"
+          },
+          "409": {
+            "description": "Chuyển trạng thái sai (INVALID_TRANSITION) hoặc đang thanh toán (PAYMENT_IN_PROGRESS)"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hủy đơn hàng (Task 10 & Quy trình hoàn tiền VietQR)",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/confirm-refund": {
+      "patch": {
+        "description": "Chỉ nhân viên Barista mới có quyền xác nhận đã hoàn tất giao dịch chuyển tiền VietQR cho đơn hủy.",
+        "operationId": "OrdersController_confirmRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID đơn hàng",
+            "schema": {
+              "example": 1042,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Xác nhận hoàn tiền thành công"
+          },
+          "403": {
+            "description": "Chỉ nhân viên Barista mới có quyền"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Barista xác nhận đã chuyển khoản hoàn tiền VietQR cho khách",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/refund-points": {
+      "patch": {
+        "description": "Quy đổi tổng tiền đơn đã thanh toán thành điểm thưởng (1 điểm = 10đ) và cộng trực tiếp vào tài khoản khách.",
+        "operationId": "OrdersController_refundPoints",
         "parameters": [
           {
             "name": "id",
@@ -871,10 +961,10 @@
         ],
         "responses": {
           "200": {
-            "description": "Hủy đơn thành công"
+            "description": "Hoàn điểm thành công"
           },
-          "409": {
-            "description": "Chuyển trạng thái sai (INVALID_TRANSITION) hoặc đang thanh toán (PAYMENT_IN_PROGRESS)"
+          "403": {
+            "description": "Chỉ Barista hoặc Manager có quyền"
           }
         },
         "security": [
@@ -882,7 +972,142 @@
             "bearer": []
           }
         ],
-        "summary": "Hủy đơn hàng (Task 10)",
+        "summary": "Hoàn tiền đơn hủy bằng điểm thưởng cho khách hàng (Barista/Manager)",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/fail-refund": {
+      "patch": {
+        "description": "Đánh dấu quy trình hoàn tiền thất bại với lý do cụ thể, chuyển sang FAILED để xử lý lại.",
+        "operationId": "OrdersController_failRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID đơn hàng",
+            "schema": {
+              "example": 1042,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FailRefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cập nhật thất bại thành công"
+          },
+          "403": {
+            "description": "Chỉ nhân viên Barista mới có quyền"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Barista báo chuyển khoản hoàn tiền thất bại (lỗi STK, tài khoản khóa)",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/hold-refund": {
+      "patch": {
+        "description": "Treo giao dịch hoàn tiền khi trạng thái ngân hàng chưa rõ ràng để đối soát trước khi hoàn tất.",
+        "operationId": "OrdersController_holdRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID đơn hàng",
+            "schema": {
+              "example": 1042,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HoldRefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chuyển sang đối soát thành công"
+          },
+          "403": {
+            "description": "Chỉ nhân viên Barista mới có quyền"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Chuyển hoàn tiền sang trạng thái đối soát nghi ngờ (UNKNOWN)",
+        "tags": [
+          "Orders"
+        ]
+      }
+    },
+    "/api/orders/{id}/retry-refund": {
+      "patch": {
+        "description": "Cho phép Barista thử lại giao dịch hoàn tiền, có thể cập nhật thông tin tài khoản/ngân hàng nếu khách cung cấp lại.",
+        "operationId": "OrdersController_retryRefund",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "ID đơn hàng",
+            "schema": {
+              "example": 1042,
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryRefundDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đặt lại trạng thái PENDING thành công"
+          },
+          "403": {
+            "description": "Chỉ nhân viên Barista mới có quyền"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Thử lại hoàn tiền VietQR (chuyển về PENDING)",
         "tags": [
           "Orders"
         ]
@@ -1143,7 +1368,7 @@
   },
   "info": {
     "title": "BrewLite API",
-    "description": "Tài liệu OpenAPI / Swagger cho hệ thống bán cà phê BrewLite (Assignment 1). Hỗ trợ xác thực JWT Bearer, quản lý sản phẩm, tồn kho định lượng nguyên liệu, đặt hàng, xử lý thanh toán tiền mặt & kiểm kê kho.",
+    "description": "Tài liệu OpenAPI / Swagger cho hệ thống bán cà phê BrewLite (Assignment 2). Hỗ trợ xác thực JWT Bearer, quản lý sản phẩm, tồn kho định lượng nguyên liệu, đặt hàng, xử lý thanh toán VNPay & hoàn tiền.",
     "version": "1.0",
     "contact": {}
   },
@@ -1166,11 +1391,11 @@
     },
     {
       "name": "Orders",
-      "description": "Đặt hàng, xem danh sách và cập nhật trạng thái đơn"
+      "description": "Đặt hàng, xem danh sách, cập nhật trạng thái đơn và xử lý hoàn tiền"
     },
     {
       "name": "Payments",
-      "description": "Thanh toán trực tiếp hỗ trợ Idempotency Key"
+      "description": "Thanh toán trực tiếp, cổng thanh toán điện tử VNPay và hoàn tất giả lập"
     },
     {
       "name": "Promotions",
@@ -1432,6 +1657,73 @@
         "required": [
           "items"
         ]
+      },
+      "CancelOrderDto": {
+        "type": "object",
+        "properties": {
+          "refundBank": {
+            "type": "string",
+            "description": "Mã ngân hàng nhận hoàn tiền (VietQR)",
+            "example": "MB"
+          },
+          "refundAccount": {
+            "type": "string",
+            "description": "Số tài khoản ngân hàng nhận hoàn tiền",
+            "example": "0987654321"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Lý do hủy đơn hàng"
+          }
+        }
+      },
+      "ConfirmRefundDto": {
+        "type": "object",
+        "properties": {
+          "refundRef": {
+            "type": "string",
+            "description": "Mã tham chiếu giao dịch hoặc mã FT VietQR từ Barista",
+            "example": "FT2401928374"
+          }
+        }
+      },
+      "FailRefundDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Lý do chuyển khoản hoàn tiền thất bại (vd: Sai số tài khoản, tài khoản bị khóa)",
+            "example": "Tài khoản người nhận không tồn tại hoặc bị đóng"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "HoldRefundDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "description": "Ghi chú nghi ngờ giao dịch / đối soát ngân hàng (UNKNOWN)",
+            "example": "Lệnh chuyển khoản đang xử lý tại Napas, chờ đối soát ngân hàng"
+          }
+        }
+      },
+      "RetryRefundDto": {
+        "type": "object",
+        "properties": {
+          "refundBank": {
+            "type": "string",
+            "description": "Mã ngân hàng mới nếu khách hàng muốn cập nhật lại",
+            "example": "VCB"
+          },
+          "refundAccount": {
+            "type": "string",
+            "description": "Số tài khoản mới nếu khách hàng muốn cập nhật lại",
+            "example": "0123456789"
+          }
+        }
       },
       "UpdateOrderStatusDto": {
         "type": "object",

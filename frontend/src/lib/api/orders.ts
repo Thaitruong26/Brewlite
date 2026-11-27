@@ -40,6 +40,7 @@ export interface OrderResponse {
   createdAt?: string;
 }
 
+// Chức năng: Tạo mới hoặc thêm dữ liệu (createOrder). Cách hoạt động: Kiểm tra đầu vào (payload), thực hiện lưu trữ và trả về bản ghi vừa tạo.
 export function createOrder(payload: CreateOrderRequest) {
   return apiRequest<OrderResponse>("/orders", {
     method: "POST",
@@ -48,6 +49,7 @@ export function createOrder(payload: CreateOrderRequest) {
   });
 }
 
+// Chức năng: Lấy dữ liệu Order. Cách hoạt động: Truy vấn dữ liệu từ Backend API và trả về kết quả đã định dạng.
 export function getOrder(orderId: number) {
   return apiRequest<OrderResponse>(`/orders/${orderId}`, {
     authenticated: true,

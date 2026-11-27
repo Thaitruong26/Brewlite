@@ -35,7 +35,7 @@ import { AdjustIngredientStockDto } from './dto/adjust-ingredient-stock.dto.js';
 export class IngredientsController {
   constructor(private readonly ingredientsService: IngredientsService) {}
 
-  /** 4.1. GET /ingredients (Công khai hoặc Barista) */
+  // Chức năng: Lấy danh sách nguyên liệu và tồn kho hiện tại. Cách hoạt động: Gọi IngredientsService.findAll() kèm cờ cảnh báo tồn thấp (low).
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách nguyên liệu và tồn kho' })
   @ApiResponse({ status: 200, description: 'Danh sách nguyên liệu thành công' })
@@ -43,11 +43,11 @@ export class IngredientsController {
     return this.ingredientsService.findAll(query);
   }
 
-  /** 4.2. POST /ingredients */
+  // Chức năng: Tạo mới nguyên liệu trong kho. Cách hoạt động: Chỉ Barista/Manager, kiểm tra trùng tên và lưu nguyên liệu mới kèm log biến động ban đầu.
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Tạo mới nguyên liệu (Barista)' })
   @ApiResponse({ status: 201, description: 'Tạo nguyên liệu thành công' })
@@ -59,11 +59,11 @@ export class IngredientsController {
     return this.ingredientsService.create(dto, user?.id);
   }
 
-  /** 4.3. PATCH /ingredients/:id */
+  // Chức năng: Cập nhật tên hoặc ngưỡng cảnh báo an toàn của nguyên liệu. Cách hoạt động: Gọi IngredientsService.update(id, dto).
   @Patch(':id')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @ApiOperation({ summary: 'Cập nhật thông tin nguyên liệu (Barista)' })
   @ApiParam({ name: 'id', description: 'ID nguyên liệu', example: 1 })
   @ApiResponse({ status: 200, description: 'Cập nhật thành công' })
@@ -73,7 +73,7 @@ export class IngredientsController {
     return this.ingredientsService.update(id, dto);
   }
 
-  /** 4.4. POST /ingredients/:id/stock (Nhập kho từ Quầy Barista) */
+  // Chức năng: Nhập thêm tồn kho nguyên liệu. Cách hoạt động: Tăng số lượng tồn kho hiện tại và ghi lại lịch sử StockMovement loại IN.
   @Post(':id/stock')
   @ApiOperation({ summary: 'Nhập thêm tồn kho nguyên liệu (Barista)' })
   @ApiParam({ name: 'id', description: 'ID nguyên liệu', example: 1 })
@@ -88,11 +88,11 @@ export class IngredientsController {
     return this.ingredientsService.addStock(id, dto, user?.id);
   }
 
-  /** 4.5. POST /ingredients/:id/adjust */
+  // Chức năng: Kiểm kê và điều chỉnh tồn kho thực tế. Cách hoạt động: Cập nhật lại tồn kho theo số đếm thực tế (actualStock) và ghi nhận chênh lệch kèm lý do vào StockMovement.
   @Post(':id/adjust')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @ApiOperation({ summary: 'Kiểm kê hoặc ghi nhận hao hụt nguyên liệu (Barista)' })
   @ApiParam({ name: 'id', description: 'ID nguyên liệu', example: 1 })
   @ApiResponse({ status: 200, description: 'Điều chỉnh tồn kho thành công' })
@@ -106,11 +106,11 @@ export class IngredientsController {
     return this.ingredientsService.adjustStock(id, dto, user?.id);
   }
 
-  /** 4.6. GET /ingredients/:id/movements */
+  // Chức năng: Xem lịch sử xuất nhập tồn kho của 1 nguyên liệu. Cách hoạt động: Truy vấn bảng StockMovement theo ingredientId, sắp xếp mới nhất và phân trang.
   @Get(':id/movements')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.BARISTA)
+  @Roles(Role.BARISTA, Role.MANAGER)
   @ApiOperation({ summary: 'Nhật ký biến động tồn kho của một nguyên liệu (Barista)' })
   @ApiParam({ name: 'id', description: 'ID nguyên liệu', example: 1 })
   @ApiResponse({ status: 200, description: 'Lấy nhật ký thành công' })

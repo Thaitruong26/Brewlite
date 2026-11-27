@@ -48,7 +48,7 @@ export default function CheckoutPage() {
   } = useCartStore();
 
   const [mounted, setMounted] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("WALLET");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("VNPAY");
   const [mockResult, setMockResult] = useState<MockPaymentResult>("SUCCESS");
   const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
 
@@ -544,112 +544,6 @@ export default function CheckoutPage() {
                     </div>
                   </label>
 
-                  <label
-                    onClick={() => handleSelectMethod("WALLET")}
-                    className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      paymentMethod === "WALLET"
-                        ? "border-amber-800 bg-amber-50/60"
-                        : "border-stone-200 hover:border-stone-300 bg-white"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="WALLET"
-                      checked={paymentMethod === "WALLET"}
-                      onChange={() => handleSelectMethod("WALLET")}
-                      className="mt-1 accent-amber-800"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-stone-900">
-                          Chuyển khoản QR MoMo (Khuyên dùng)
-                        </span>
-                        <span className="text-xl">📱</span>
-                      </div>
-                      <p className="text-xs text-stone-600 mt-1">
-                        Quét mã QR MoMo, chuyển khoản kèm mã đơn và chờ Barista xác nhận.
-                      </p>
-                    </div>
-                  </label>
-
-                  <label
-                    onClick={() => handleSelectMethod("CARD")}
-                    className={`flex items-start gap-3.5 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      paymentMethod === "CARD"
-                        ? "border-amber-800 bg-amber-50/60"
-                        : "border-stone-200 hover:border-stone-300 bg-white"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="CARD"
-                      checked={paymentMethod === "CARD"}
-                      onChange={() => handleSelectMethod("CARD")}
-                      className="mt-1 accent-amber-800"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-stone-900">
-                          Thẻ ngân hàng (CARD)
-                        </span>
-                        <span className="text-xl">💳</span>
-                      </div>
-                      <p className="text-xs text-stone-600 mt-1">
-                        Thẻ ATM nội địa (Napas) hoặc thẻ quốc tế Visa / Mastercard.
-                      </p>
-
-                      {paymentMethod === "CARD" && (
-                        <div className="mt-3 pt-3 border-t border-amber-200/60">
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-[11px] font-semibold text-amber-950 uppercase tracking-wider">
-                              🧪 Chế độ giả lập thẻ (US-05 Demo):
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMockResult("SUCCESS");
-                                setIdempotencyKey(generateUUID());
-                                setErrorState(null);
-                              }}
-                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                mockResult === "SUCCESS"
-                                  ? "bg-emerald-600 text-white shadow-xs"
-                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
-                              }`}
-                            >
-                              ✓ Thành công (PAID ngay)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setMockResult("FAILED");
-                                setIdempotencyKey(generateUUID());
-                                setErrorState(null);
-                              }}
-                              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                                mockResult === "FAILED"
-                                  ? "bg-red-600 text-white shadow-xs"
-                                  : "bg-white text-stone-600 border border-stone-300 hover:bg-stone-50"
-                              }`}
-                            >
-                              ✗ Thất bại (Lỗi 402)
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-stone-500 mt-1.5">
-                            {mockResult === "SUCCESS"
-                              ? "Thẻ sẽ gọi POST /payments và tự động sang trạng thái PAID ngay lập tức."
-                              : "Thẻ sẽ mô phỏng từ chối thẻ (HTTP 402), chuyển sang PAYMENT_FAILED và giữ giỏ hàng."}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </label>
                 </div>
 
                 {/* Bảng tính tổng tiền */}

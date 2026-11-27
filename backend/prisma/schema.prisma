@@ -47,6 +47,7 @@ enum Size {
 enum Role {
   CUSTOMER
   BARISTA
+  MANAGER
 }
 
 enum DiscountType {
@@ -204,8 +205,8 @@ model Payment {
 
   responseSnapshot Json?
 
-  // Hoàn tiền mock khi hủy đơn đã PAID (không có bảng Refund riêng).
-  // Giữ nguyên status = SUCCESS và responseSnapshot của lần thanh toán đầu.
+  // Hoàn tiền chuyển khoản VietQR thủ công qua Barista khi hủy đơn PAID (ADR-009 / D-07).
+  // Giữ nguyên status = SUCCESS của lần thanh toán; ghi nhận thời điểm hoàn, số tiền và thông tin STK/mã VietQR.
   refundedAt     DateTime?
   refundedAmount Int       @default(0)
   refundRef      String?
